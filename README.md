@@ -44,19 +44,43 @@ Agent Provider (可插拔)                 UI
 
 ```
 src/
-├── index.tsx              CLI entry point (ink render)
-├── app.tsx                主 App 元件
-├── core/                  核心邏輯 (agent, permission, session, task, clipboard, config)
-├── backend/               Agent Backend interface + 實作 (claude, gemini)
-├── components/            ink React 元件 (agent-view, terminal-view, permission-popup, ...)
-└── utils/                 工具函式 (risk-level, ...)
+├── index.tsx                    CLI entry point (ink render)
+├── app.tsx                      主 App 元件（多專案、雙畫面、權限流程）
+├── core/
+│   ├── permission.ts            風險分級邏輯 (safe/warning/danger)
+│   ├── session.ts               Session 持久化（save/load/list）
+│   ├── task.ts                  子任務追蹤（停滯偵測）
+│   ├── config.ts                設定檔讀寫
+│   ├── commands.ts              指令系統（/help, /mode, /resume 等）
+│   ├── keybindings.ts           快捷鍵設定（平台預設值）
+│   ├── clipboard.ts             跨平台剪貼簿偵測
+│   ├── workspace.ts             專案管理
+│   └── logger.ts                日誌系統（auto-rotate, 10MB）
+├── backend/
+│   ├── types.ts                 AgentBackend interface
+│   ├── claude/
+│   │   └── backend.ts           Claude Agent SDK（canUseTool 權限回調）
+│   └── gemini/
+│       └── backend.ts           Gemini CLI（node-pty 包裝）
+├── components/
+│   ├── input-area.tsx           文字輸入區
+│   ├── message-list.tsx         訊息列表（折疊/展開、Markdown）
+│   ├── permission-popup.tsx     權限審查彈窗
+│   ├── terminal-view.tsx        內嵌 PTY Terminal（node-pty）
+│   ├── status-line.tsx          狀態列（model/tokens/cost/git）
+│   ├── project-line.tsx         專案列（狀態燈號）
+│   ├── notification-bar.tsx     跨畫面通知
+│   └── task-list.tsx            子任務列表
+└── utils/
+    ├── markdown.ts              Markdown 渲染（marked + marked-terminal）
+    └── risk-level.ts            危險關鍵字高亮
 ```
 
 ## 開發環境
 
 ```bash
-npm install
-npm run dev
+docker-compose build
+docker-compose run --rm dev npm run dev
 ```
 
 ## 技術選型
