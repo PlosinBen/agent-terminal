@@ -1,3 +1,5 @@
+import { listSessions } from './session.js';
+
 export interface CommandResult {
   type: 'message' | 'action';
   content: string;
@@ -12,7 +14,7 @@ export function parseCommand(input: string): { command: string; args: string } |
   return { command: input.slice(1, spaceIdx), args: input.slice(spaceIdx + 1).trim() };
 }
 
-export function executeCommand(command: string, args: string): CommandResult {
+export function executeCommand(command: string, args: string, cwd?: string): CommandResult {
   switch (command) {
     case 'mode':
       if (!args) return { type: 'message', content: 'Usage: /mode <default|acceptEdits|bypassPermissions|plan>' };
@@ -25,6 +27,31 @@ export function executeCommand(command: string, args: string): CommandResult {
     case 'clear':
       return { type: 'action', content: 'Screen cleared', action: 'clear' };
 
+    case 'sessions': {
+      const sessions = listSessions(cwd);
+      if (sessions.length === 0) {
+        return { type: 'message', content: 'No saved sessions.' };
+      }
+      const list = sessions.map((s, i) =>
+        `  ${i + 1}. ${s.id} — ${s.numTurns}t, $${s.totalCostUsd.toFixed(3)}, ${s.updatedAt}`
+      ).join('\n');
+      return { type: 'message', content: `Sessions:\n${list}` };
+    }
+
+    case 'resume':
+      if (!args) {
+        const sessions = listSessions(cwd);
+        if (sessions.length === 0) return { type: 'message', content: 'No sessions to resume.' };
+        const list = sessions.slice(0, 5).map((s, i) =>
+          `  ${i + 1}. ${s.id} — ${s.numTurns}t, ${s.updatedAt}`
+        ).join('\n');
+        return { type: 'message', content: `Recent sessions:\n${list}\n\nUsage: /resume <session-id>` };
+      }
+      return { type: 'action', content: `Resuming session: ${args}`, action: 'resume', payload: args };
+
+    case 'fork':
+      return { type: 'action', content: 'Forking current session...', action: 'fork' };
+
     case 'quit':
     case 'exit':
       return { type: 'action', content: 'Goodbye', action: 'quit' };
@@ -34,18 +61,21 @@ export function executeCommand(command: string, args: string): CommandResult {
         type: 'message',
         content: [
           'Commands:',
-          '  /mode <mode>   — Set permission mode (default/acceptEdits/bypassPermissions/plan)',
-          '  /model <name>  — Set model',
-          '  /clear         — Clear screen',
-          '  /quit          — Exit',
-          '  /help          — Show this help',
+          '  /mode <mode>     — Set permission mode',
+          '  /model <name>    — Set model',
+          '  /sessions        — List saved sessions',
+          '  /resume [id]     — Resume a session',
+          '  /fork            — Fork current session',
+          '  /clear           — Clear screen',
+          '  /quit            — Exit',
+          '  /help            — Show this help',
           '',
           'Shortcuts:',
-          '  Alt+←/→        — Switch Agent/Terminal view',
-          '  Alt+1~9        — Switch project',
-          '  Ctrl+N         — New project',
-          '  Ctrl+W         — Close project',
-          '  Ctrl+D         — Quit',
+          '  Alt+←/→          — Switch Agent/Terminal view',
+          '  Alt+1~9          — Switch project',
+          '  Ctrl+N           — New project',
+          '  Ctrl+W           — Close project',
+          '  Ctrl+D           — Quit',
         ].join('\n'),
       };
 
