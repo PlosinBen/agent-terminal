@@ -1,8 +1,8 @@
 import { marked } from 'marked';
-import TerminalRenderer from 'marked-terminal';
+import { markedTerminal } from 'marked-terminal';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-marked.use({ renderer: new TerminalRenderer() as any });
+marked.use(markedTerminal() as any);
 
 export function renderMarkdown(text: string): string {
   try {
