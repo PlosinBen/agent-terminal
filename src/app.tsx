@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useApp } from 'ink';
 import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
 import PermissionPopup from './components/permission-popup.js';
@@ -8,8 +8,8 @@ import StatusLine, { type StatusInfo } from './components/status-line.js';
 import ProjectLine, { type ProjectInfo } from './components/project-line.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
+import { createProject, type Project } from './core/workspace.js';
 import { execSync } from 'child_process';
-import path from 'path';
 
 type ViewMode = 'agent' | 'terminal';
 
@@ -18,161 +18,250 @@ interface PendingPermission {
   resolve: (result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => void;
 }
 
-function getGitBranch(): string {
+interface ProjectState {
+  project: Project;
+  backend: AgentBackend;
+  messages: Message[];
+  loading: boolean;
+  pendingPermission: PendingPermission | null;
+  turns: number;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+function getGitBranch(cwd: string): string {
   try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', cwd }).trim();
   } catch {
     return '-';
   }
 }
 
-export default function App() {
-  const backendRef = useRef<AgentBackend>(new ClaudeBackend());
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'agent-terminal v0.1.0 — Ready.' },
-  ]);
-  const [loading, setLoading] = useState(false);
-  const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
-  const [view, setView] = useState<ViewMode>('agent');
-  const [turns, setTurns] = useState(0);
-  const [costUsd, setCostUsd] = useState(0);
-  const [inputTokens, setInputTokens] = useState(0);
-  const [outputTokens, setOutputTokens] = useState(0);
-
-  const cwd = process.cwd();
-  const projectName = path.basename(cwd);
-
-  const agentStatus: StatusInfo['agentStatus'] = pendingPermission
-    ? 'attention'
-    : loading
-      ? 'running'
-      : 'idle';
-
-  const status: StatusInfo = {
-    model: 'opus',
-    inputTokens,
-    outputTokens,
-    costUsd,
-    contextPct: 0,
-    turns,
-    gitBranch: getGitBranch(),
-    permissionMode: 'default',
-    agentStatus,
+function createProjectState(cwd: string): ProjectState {
+  const backend = new ClaudeBackend();
+  return {
+    project: createProject(cwd),
+    backend,
+    messages: [{ role: 'system', content: `agent-terminal v0.1.0 — ${cwd}` }],
+    loading: false,
+    pendingPermission: null,
+    turns: 0,
+    costUsd: 0,
+    inputTokens: 0,
+    outputTokens: 0,
   };
+}
 
-  const projects: ProjectInfo[] = [
-    { name: projectName, status: agentStatus },
-  ];
+export default function App() {
+  const { exit } = useApp();
+  const [projectStates, setProjectStates] = useState<ProjectState[]>(() => [
+    createProjectState(process.cwd()),
+  ]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [view, setView] = useState<ViewMode>('agent');
+  const [addingProject, setAddingProject] = useState(false);
 
-  // Global key handler for view switching
-  useInput((_ch, key) => {
-    if (key.meta && key.leftArrow) setView('agent');
-    if (key.meta && key.rightArrow) setView('terminal');
-  });
+  const current = projectStates[activeIndex]!;
 
-  // Set up permission handler once
+  // Helper to update current project state
+  const updateCurrent = useCallback((updater: (state: ProjectState) => ProjectState) => {
+    setProjectStates(prev => prev.map((s, i) => i === activeIndex ? updater(s) : s));
+  }, [activeIndex]);
+
+  // Set up permission handler for each project
   useEffect(() => {
-    backendRef.current.setPermissionHandler((req) => {
-      return new Promise((resolve) => {
-        setView('agent');
-        setPendingPermission({ request: req, resolve });
+    projectStates.forEach((ps, idx) => {
+      ps.backend.setPermissionHandler((req) => {
+        return new Promise((resolve) => {
+          setActiveIndex(idx);
+          setView('agent');
+          setProjectStates(prev => prev.map((s, i) =>
+            i === idx ? { ...s, pendingPermission: { request: req, resolve } } : s
+          ));
+        });
       });
     });
-  }, []);
+  }, [projectStates.length]);
+
+  // Global key handler
+  useInput((ch, key) => {
+    // View switching: Alt+Left/Right
+    if (key.meta && key.leftArrow) { setView('agent'); return; }
+    if (key.meta && key.rightArrow) { setView('terminal'); return; }
+
+    // Project switching: Alt+1~9
+    if (key.meta && ch >= '1' && ch <= '9') {
+      const idx = parseInt(ch) - 1;
+      if (idx < projectStates.length) setActiveIndex(idx);
+      return;
+    }
+
+    // New project: Ctrl+N
+    if (key.ctrl && ch === 'n') {
+      setAddingProject(true);
+      return;
+    }
+
+    // Close project: Ctrl+W
+    if (key.ctrl && ch === 'w') {
+      if (projectStates.length <= 1) {
+        exit();
+        return;
+      }
+      setProjectStates(prev => prev.filter((_, i) => i !== activeIndex));
+      setActiveIndex(i => Math.min(i, projectStates.length - 2));
+      return;
+    }
+
+    // Quit: Ctrl+D
+    if (key.ctrl && ch === 'd') {
+      exit();
+      return;
+    }
+  });
 
   const handlePermissionResponse = useCallback((result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => {
-    if (pendingPermission) {
-      pendingPermission.resolve(result);
-      setPendingPermission(null);
+    if (current.pendingPermission) {
+      current.pendingPermission.resolve(result);
+      updateCurrent(s => ({ ...s, pendingPermission: null }));
     }
-  }, [pendingPermission]);
+  }, [current.pendingPermission, updateCurrent]);
 
   const handleSubmit = useCallback(async (text: string) => {
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
-    setLoading(true);
-    setTurns(t => t + 1);
+    updateCurrent(s => ({
+      ...s,
+      messages: [...s.messages, { role: 'user', content: text }],
+      loading: true,
+      turns: s.turns + 1,
+    }));
 
     try {
-      const gen = backendRef.current.query(text);
+      const gen = current.backend.query(text, { cwd: current.project.cwd });
       let assistantText = '';
 
       for await (const msg of gen) {
         if (msg.type === 'result') {
           assistantText = msg.content;
-          if (msg.costUsd) setCostUsd(c => c + msg.costUsd!);
-          if (msg.inputTokens) setInputTokens(msg.inputTokens);
-          if (msg.outputTokens) setOutputTokens(msg.outputTokens);
+          updateCurrent(s => ({
+            ...s,
+            costUsd: s.costUsd + (msg.costUsd ?? 0),
+            inputTokens: msg.inputTokens ?? s.inputTokens,
+            outputTokens: msg.outputTokens ?? s.outputTokens,
+          }));
         } else if (msg.type === 'text') {
           assistantText += msg.content;
-          setMessages(prev => {
-            const last = prev[prev.length - 1];
+          const text = assistantText;
+          updateCurrent(s => {
+            const last = s.messages[s.messages.length - 1];
             if (last?.role === 'assistant') {
-              return [...prev.slice(0, -1), { role: 'assistant', content: assistantText }];
+              return { ...s, messages: [...s.messages.slice(0, -1), { role: 'assistant' as const, content: text }] };
             }
-            return [...prev, { role: 'assistant', content: assistantText }];
+            return { ...s, messages: [...s.messages, { role: 'assistant' as const, content: text }] };
           });
         } else if (msg.type === 'tool_use') {
-          setMessages(prev => [
-            ...prev,
-            { role: 'system', content: `● ${msg.toolName}: ${msg.content}` },
-          ]);
+          updateCurrent(s => ({
+            ...s,
+            messages: [...s.messages, { role: 'system', content: `● ${msg.toolName}: ${msg.content}` }],
+          }));
         }
       }
 
       if (assistantText) {
-        setMessages(prev => {
-          const last = prev[prev.length - 1];
+        const finalText = assistantText;
+        updateCurrent(s => {
+          const last = s.messages[s.messages.length - 1];
           if (last?.role === 'assistant') {
-            return [...prev.slice(0, -1), { role: 'assistant', content: assistantText }];
+            return { ...s, messages: [...s.messages.slice(0, -1), { role: 'assistant' as const, content: finalText }] };
           }
-          return [...prev, { role: 'assistant', content: assistantText }];
+          return { ...s, messages: [...s.messages, { role: 'assistant' as const, content: finalText }] };
         });
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      setMessages(prev => [
-        ...prev,
-        { role: 'system', content: `Error: ${errMsg}` },
-      ]);
+      updateCurrent(s => ({
+        ...s,
+        messages: [...s.messages, { role: 'system', content: `Error: ${errMsg}` }],
+      }));
     } finally {
-      setLoading(false);
+      updateCurrent(s => ({ ...s, loading: false }));
     }
-  }, []);
+  }, [current.backend, current.project.cwd, updateCurrent]);
+
+  const handleAddProject = useCallback((cwdPath: string) => {
+    const newState = createProjectState(cwdPath);
+    setProjectStates(prev => [...prev, newState]);
+    setActiveIndex(projectStates.length);
+    setAddingProject(false);
+  }, [projectStates.length]);
+
+  // Build status info
+  const agentStatus: StatusInfo['agentStatus'] = current.pendingPermission
+    ? 'attention'
+    : current.loading
+      ? 'running'
+      : 'idle';
+
+  const status: StatusInfo = {
+    model: 'opus',
+    inputTokens: current.inputTokens,
+    outputTokens: current.outputTokens,
+    costUsd: current.costUsd,
+    contextPct: 0,
+    turns: current.turns,
+    gitBranch: getGitBranch(current.project.cwd),
+    permissionMode: 'default',
+    agentStatus,
+  };
+
+  const projectInfos: ProjectInfo[] = projectStates.map(ps => ({
+    name: ps.project.name,
+    status: ps.pendingPermission ? 'attention' : ps.loading ? 'running' : 'idle',
+  }));
 
   return (
     <Box flexDirection="column" height={process.stdout.rows}>
       {/* Agent View */}
       {view === 'agent' && (
         <Box flexDirection="column" flexGrow={1}>
-          <MessageList messages={messages} />
-
-          {pendingPermission && (
-            <PermissionPopup
-              toolName={pendingPermission.request.toolName}
-              input={pendingPermission.request.input}
-              title={pendingPermission.request.title}
-              onRespond={handlePermissionResponse}
-            />
-          )}
-
-          {loading && !pendingPermission && (
-            <Box paddingX={1}>
-              <Text color="yellow">● Agent is thinking...</Text>
+          {addingProject ? (
+            <Box flexDirection="column" paddingX={1}>
+              <Text bold>New project — enter directory path:</Text>
+              <InputArea onSubmit={handleAddProject} />
             </Box>
-          )}
+          ) : (
+            <>
+              <MessageList messages={current.messages} />
 
-          <InputArea onSubmit={handleSubmit} disabled={loading} />
+              {current.pendingPermission && (
+                <PermissionPopup
+                  toolName={current.pendingPermission.request.toolName}
+                  input={current.pendingPermission.request.input}
+                  title={current.pendingPermission.request.title}
+                  onRespond={handlePermissionResponse}
+                />
+              )}
+
+              {current.loading && !current.pendingPermission && (
+                <Box paddingX={1}>
+                  <Text color="yellow">● Agent is thinking...</Text>
+                </Box>
+              )}
+
+              <InputArea onSubmit={handleSubmit} disabled={current.loading} />
+            </>
+          )}
         </Box>
       )}
 
       {/* Terminal View */}
       {view === 'terminal' && (
-        <TerminalView active={view === 'terminal'} />
+        <TerminalView active={view === 'terminal'} cwd={current.project.cwd} />
       )}
 
       {/* Bottom bars — always visible */}
       <StatusLine status={status} />
-      <ProjectLine projects={projects} activeIndex={0} />
+      <ProjectLine projects={projectInfos} activeIndex={activeIndex} />
     </Box>
   );
 }
