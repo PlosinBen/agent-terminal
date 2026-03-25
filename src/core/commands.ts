@@ -1,5 +1,22 @@
 import { listSessions } from './session.js';
 
+export const MODELS = [
+  { name: 'opus', desc: 'Claude Opus — 最強' },
+  { name: 'sonnet', desc: 'Claude Sonnet — 平衡' },
+  { name: 'haiku', desc: 'Claude Haiku — 快速' },
+];
+
+export const COMMANDS = [
+  { name: 'mode', args: '<mode>', desc: '設定權限模式', options: ['default', 'acceptEdits', 'bypassPermissions', 'plan'] },
+  { name: 'model', args: '<name>', desc: '設定模型', options: MODELS.map(m => m.name) },
+  { name: 'sessions', args: '', desc: '列出已存 sessions' },
+  { name: 'resume', args: '[id]', desc: '恢復 session' },
+  { name: 'fork', args: '', desc: 'Fork 當前 session' },
+  { name: 'clear', args: '', desc: '清除畫面' },
+  { name: 'quit', args: '', desc: '離開' },
+  { name: 'help', args: '', desc: '顯示說明' },
+];
+
 export interface CommandResult {
   type: 'message' | 'action';
   content: string;

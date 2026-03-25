@@ -79,8 +79,8 @@ src/
 ## 開發環境
 
 ```bash
-docker-compose build
-docker-compose run --rm dev npm run dev
+npm install
+npm run dev
 ```
 
 ## 技術選型
