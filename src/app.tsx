@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
@@ -55,22 +55,78 @@ function createProjectState(cwd: string): ProjectState {
   };
 }
 
+const WELCOME_OPTIONS = [
+  { label: 'Open current directory', desc: process.cwd() },
+  { label: 'Enter a path', desc: 'Specify a project directory' },
+];
+
+function WelcomeScreen({ onSelect }: { onSelect: (choice: 'cwd' | 'input') => void }) {
+  const [selected, setSelected] = useState(0);
+  const { exit } = useApp();
+
+  useInput((ch, key) => {
+    if (key.upArrow) setSelected(i => Math.max(0, i - 1));
+    if (key.downArrow) setSelected(i => Math.min(WELCOME_OPTIONS.length - 1, i + 1));
+    if (key.return) {
+      onSelect(selected === 0 ? 'cwd' : 'input');
+    }
+    if (key.ctrl && ch === 'd') exit();
+  });
+
+  return (
+    <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center">
+      <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={1}>
+        <Text bold color="cyan">
+          {'  agent-terminal v0.1.0'}
+        </Text>
+        <Text>{''}</Text>
+        <Text dimColor>Select a project to get started:</Text>
+        <Text>{''}</Text>
+        {WELCOME_OPTIONS.map((opt, i) => (
+          <Box key={opt.label}>
+            <Text color={i === selected ? 'cyan' : 'gray'}>
+              {i === selected ? '  › ' : '    '}
+            </Text>
+            <Text color={i === selected ? 'cyan' : 'white'} bold={i === selected}>
+              {opt.label}
+            </Text>
+            <Text color="gray"> — {opt.desc}</Text>
+          </Box>
+        ))}
+        <Text>{''}</Text>
+        <Text dimColor>  Ctrl+D to quit</Text>
+      </Box>
+    </Box>
+  );
+}
+
 export default function App() {
   const { exit } = useApp();
-  const [projectStates, setProjectStates] = useState<ProjectState[]>(() => [
-    createProjectState(process.cwd()),
-  ]);
+  const [projectStates, setProjectStates] = useState<ProjectState[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [view, setView] = useState<ViewMode>('agent');
   const [addingProject, setAddingProject] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [welcomePathInput, setWelcomePathInput] = useState(false);
 
-  const current = projectStates[activeIndex]!;
+  const current = projectStates[activeIndex];
+  const showWelcome = projectStates.length === 0 && !welcomePathInput;
 
   // Helper to update current project state
   const updateCurrent = useCallback((updater: (state: ProjectState) => ProjectState) => {
     setProjectStates(prev => prev.map((s, i) => i === activeIndex ? updater(s) : s));
   }, [activeIndex]);
+
+  const addProject = useCallback((cwdPath: string) => {
+    const newState = createProjectState(cwdPath);
+    setProjectStates(prev => {
+      const next = [...prev, newState];
+      return next;
+    });
+    setActiveIndex(prev => projectStates.length);
+    setAddingProject(false);
+    setWelcomePathInput(false);
+  }, [projectStates.length]);
 
   // Set up permission handler for each project
   useEffect(() => {
@@ -90,6 +146,8 @@ export default function App() {
 
   // Global key handler
   useInput((ch, key) => {
+    if (showWelcome || welcomePathInput) return;
+
     // View switching: Alt+Left/Right
     if (key.meta && key.leftArrow) { setView('agent'); return; }
     if (key.meta && key.rightArrow) { setView('terminal'); return; }
@@ -126,13 +184,15 @@ export default function App() {
   });
 
   const handlePermissionResponse = useCallback((result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => {
-    if (current.pendingPermission) {
+    if (current?.pendingPermission) {
       current.pendingPermission.resolve(result);
       updateCurrent(s => ({ ...s, pendingPermission: null }));
     }
-  }, [current.pendingPermission, updateCurrent]);
+  }, [current?.pendingPermission, updateCurrent]);
 
   const handleSubmit = useCallback(async (text: string) => {
+    if (!current) return;
+
     // Handle commands
     const cmd = parseCommand(text);
     if (cmd) {
@@ -207,14 +267,41 @@ export default function App() {
       updateCurrent(s => ({ ...s, loading: false }));
       setNotification({ type: 'done', message: '[Agent] Response complete' });
     }
-  }, [current.backend, current.project.cwd, updateCurrent]);
+  }, [current?.backend, current?.project.cwd, updateCurrent]);
 
-  const handleAddProject = useCallback((cwdPath: string) => {
-    const newState = createProjectState(cwdPath);
-    setProjectStates(prev => [...prev, newState]);
-    setActiveIndex(projectStates.length);
-    setAddingProject(false);
-  }, [projectStates.length]);
+  // Welcome screen
+  if (showWelcome) {
+    return (
+      <Box flexDirection="column" height={process.stdout.rows}>
+        <WelcomeScreen onSelect={(choice) => {
+          if (choice === 'cwd') {
+            addProject(process.cwd());
+          } else {
+            setWelcomePathInput(true);
+          }
+        }} />
+      </Box>
+    );
+  }
+
+  // Path input for welcome
+  if (welcomePathInput && projectStates.length === 0) {
+    return (
+      <Box flexDirection="column" height={process.stdout.rows}>
+        <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center">
+          <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={1}>
+            <Text bold color="cyan">Enter project directory path:</Text>
+            <Text>{''}</Text>
+            <InputArea onSubmit={addProject} />
+            <Text>{''}</Text>
+            <Text dimColor>  Press Escape to go back</Text>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (!current) return null;
 
   // Build status info
   const agentStatus: StatusInfo['agentStatus'] = current.pendingPermission
@@ -248,7 +335,7 @@ export default function App() {
           {addingProject ? (
             <Box flexDirection="column" paddingX={1}>
               <Text bold>New project — enter directory path:</Text>
-              <InputArea onSubmit={handleAddProject} />
+              <InputArea onSubmit={addProject} />
             </Box>
           ) : (
             <>
