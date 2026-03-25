@@ -6,6 +6,7 @@ import PermissionPopup from './components/permission-popup.js';
 import TerminalView from './components/terminal-view.js';
 import StatusLine, { type StatusInfo } from './components/status-line.js';
 import ProjectLine, { type ProjectInfo } from './components/project-line.js';
+import NotificationBar, { type Notification } from './components/notification-bar.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
 import { createProject, type Project } from './core/workspace.js';
@@ -61,6 +62,7 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [view, setView] = useState<ViewMode>('agent');
   const [addingProject, setAddingProject] = useState(false);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   const current = projectStates[activeIndex]!;
 
@@ -76,6 +78,7 @@ export default function App() {
         return new Promise((resolve) => {
           setActiveIndex(idx);
           setView('agent');
+          setNotification({ type: 'permission', message: `[Agent] Permission requested — ${req.toolName}` });
           setProjectStates(prev => prev.map((s, i) =>
             i === idx ? { ...s, pendingPermission: { request: req, resolve } } : s
           ));
@@ -185,6 +188,7 @@ export default function App() {
       }));
     } finally {
       updateCurrent(s => ({ ...s, loading: false }));
+      setNotification({ type: 'done', message: '[Agent] Response complete' });
     }
   }, [current.backend, current.project.cwd, updateCurrent]);
 
@@ -256,7 +260,10 @@ export default function App() {
 
       {/* Terminal View */}
       {view === 'terminal' && (
-        <TerminalView active={view === 'terminal'} cwd={current.project.cwd} />
+        <Box flexDirection="column" flexGrow={1}>
+          <NotificationBar notification={notification} />
+          <TerminalView active={view === 'terminal'} cwd={current.project.cwd} />
+        </Box>
       )}
 
       {/* Bottom bars — always visible */}
