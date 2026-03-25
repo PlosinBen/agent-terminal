@@ -4,8 +4,12 @@ import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
 import PermissionPopup from './components/permission-popup.js';
 import TerminalView from './components/terminal-view.js';
+import StatusLine, { type StatusInfo } from './components/status-line.js';
+import ProjectLine, { type ProjectInfo } from './components/project-line.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
+import { execSync } from 'child_process';
+import path from 'path';
 
 type ViewMode = 'agent' | 'terminal';
 
@@ -14,14 +18,51 @@ interface PendingPermission {
   resolve: (result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => void;
 }
 
+function getGitBranch(): string {
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return '-';
+  }
+}
+
 export default function App() {
   const backendRef = useRef<AgentBackend>(new ClaudeBackend());
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'agent-terminal v0.1.0 — Ready. (Alt+Left/Right to switch views)' },
+    { role: 'system', content: 'agent-terminal v0.1.0 — Ready.' },
   ]);
   const [loading, setLoading] = useState(false);
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
   const [view, setView] = useState<ViewMode>('agent');
+  const [turns, setTurns] = useState(0);
+  const [costUsd, setCostUsd] = useState(0);
+  const [inputTokens, setInputTokens] = useState(0);
+  const [outputTokens, setOutputTokens] = useState(0);
+
+  const cwd = process.cwd();
+  const projectName = path.basename(cwd);
+
+  const agentStatus: StatusInfo['agentStatus'] = pendingPermission
+    ? 'attention'
+    : loading
+      ? 'running'
+      : 'idle';
+
+  const status: StatusInfo = {
+    model: 'opus',
+    inputTokens,
+    outputTokens,
+    costUsd,
+    contextPct: 0,
+    turns,
+    gitBranch: getGitBranch(),
+    permissionMode: 'default',
+    agentStatus,
+  };
+
+  const projects: ProjectInfo[] = [
+    { name: projectName, status: agentStatus },
+  ];
 
   // Global key handler for view switching
   useInput((_ch, key) => {
@@ -33,7 +74,6 @@ export default function App() {
   useEffect(() => {
     backendRef.current.setPermissionHandler((req) => {
       return new Promise((resolve) => {
-        // Auto-switch to agent view when permission is needed
         setView('agent');
         setPendingPermission({ request: req, resolve });
       });
@@ -50,6 +90,7 @@ export default function App() {
   const handleSubmit = useCallback(async (text: string) => {
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setLoading(true);
+    setTurns(t => t + 1);
 
     try {
       const gen = backendRef.current.query(text);
@@ -58,6 +99,9 @@ export default function App() {
       for await (const msg of gen) {
         if (msg.type === 'result') {
           assistantText = msg.content;
+          if (msg.costUsd) setCostUsd(c => c + msg.costUsd!);
+          if (msg.inputTokens) setInputTokens(msg.inputTokens);
+          if (msg.outputTokens) setOutputTokens(msg.outputTokens);
         } else if (msg.type === 'text') {
           assistantText += msg.content;
           setMessages(prev => {
@@ -97,18 +141,6 @@ export default function App() {
 
   return (
     <Box flexDirection="column" height={process.stdout.rows}>
-      {/* View indicator */}
-      <Box paddingX={1}>
-        <Text color={view === 'agent' ? 'green' : 'gray'} bold={view === 'agent'}>
-          [Agent]
-        </Text>
-        <Text> </Text>
-        <Text color={view === 'terminal' ? 'green' : 'gray'} bold={view === 'terminal'}>
-          [Terminal]
-        </Text>
-        <Text dimColor> — Alt+←/→ to switch</Text>
-      </Box>
-
       {/* Agent View */}
       {view === 'agent' && (
         <Box flexDirection="column" flexGrow={1}>
@@ -137,6 +169,10 @@ export default function App() {
       {view === 'terminal' && (
         <TerminalView active={view === 'terminal'} />
       )}
+
+      {/* Bottom bars — always visible */}
+      <StatusLine status={status} />
+      <ProjectLine projects={projects} activeIndex={0} />
     </Box>
   );
 }
