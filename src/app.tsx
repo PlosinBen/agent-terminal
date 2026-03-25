@@ -10,6 +10,7 @@ import NotificationBar, { type Notification } from './components/notification-ba
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
 import { createProject, type Project } from './core/workspace.js';
+import { parseCommand, executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
 
 type ViewMode = 'agent' | 'terminal';
@@ -132,6 +133,22 @@ export default function App() {
   }, [current.pendingPermission, updateCurrent]);
 
   const handleSubmit = useCallback(async (text: string) => {
+    // Handle commands
+    const cmd = parseCommand(text);
+    if (cmd) {
+      const result = executeCommand(cmd.command, cmd.args);
+      updateCurrent(s => ({
+        ...s,
+        messages: [...s.messages, { role: 'system', content: result.content }],
+      }));
+      if (result.action === 'clear') {
+        updateCurrent(s => ({ ...s, messages: [] }));
+      } else if (result.action === 'quit') {
+        exit();
+      }
+      return;
+    }
+
     updateCurrent(s => ({
       ...s,
       messages: [...s.messages, { role: 'user', content: text }],
