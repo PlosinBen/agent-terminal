@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Text } from 'ink';
+import { renderMarkdown } from '../utils/markdown.js';
 
 export type MessageType = 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'system';
 
@@ -51,7 +52,7 @@ function CollapsibleMessage({ msg, index }: { msg: Message; index: number }) {
         {roleLabels[msg.role]}:
         {msg.collapsible && <Text dimColor> [expanded]</Text>}
       </Text>
-      <Text>{msg.content}</Text>
+      <Text>{msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}</Text>
     </Box>
   );
 }
