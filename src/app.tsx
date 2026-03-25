@@ -1,10 +1,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
 import PermissionPopup from './components/permission-popup.js';
+import TerminalView from './components/terminal-view.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
+
+type ViewMode = 'agent' | 'terminal';
 
 interface PendingPermission {
   request: PermissionRequest;
@@ -14,15 +17,24 @@ interface PendingPermission {
 export default function App() {
   const backendRef = useRef<AgentBackend>(new ClaudeBackend());
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'agent-terminal v0.1.0 — Ready.' },
+    { role: 'system', content: 'agent-terminal v0.1.0 — Ready. (Alt+Left/Right to switch views)' },
   ]);
   const [loading, setLoading] = useState(false);
   const [pendingPermission, setPendingPermission] = useState<PendingPermission | null>(null);
+  const [view, setView] = useState<ViewMode>('agent');
+
+  // Global key handler for view switching
+  useInput((_ch, key) => {
+    if (key.meta && key.leftArrow) setView('agent');
+    if (key.meta && key.rightArrow) setView('terminal');
+  });
 
   // Set up permission handler once
   useEffect(() => {
     backendRef.current.setPermissionHandler((req) => {
       return new Promise((resolve) => {
+        // Auto-switch to agent view when permission is needed
+        setView('agent');
         setPendingPermission({ request: req, resolve });
       });
     });
@@ -47,7 +59,6 @@ export default function App() {
         if (msg.type === 'result') {
           assistantText = msg.content;
         } else if (msg.type === 'text') {
-          // Update in real-time
           assistantText += msg.content;
           setMessages(prev => {
             const last = prev[prev.length - 1];
@@ -64,7 +75,6 @@ export default function App() {
         }
       }
 
-      // Final result replaces accumulated text
       if (assistantText) {
         setMessages(prev => {
           const last = prev[prev.length - 1];
@@ -87,24 +97,46 @@ export default function App() {
 
   return (
     <Box flexDirection="column" height={process.stdout.rows}>
-      <MessageList messages={messages} />
+      {/* View indicator */}
+      <Box paddingX={1}>
+        <Text color={view === 'agent' ? 'green' : 'gray'} bold={view === 'agent'}>
+          [Agent]
+        </Text>
+        <Text> </Text>
+        <Text color={view === 'terminal' ? 'green' : 'gray'} bold={view === 'terminal'}>
+          [Terminal]
+        </Text>
+        <Text dimColor> — Alt+←/→ to switch</Text>
+      </Box>
 
-      {pendingPermission && (
-        <PermissionPopup
-          toolName={pendingPermission.request.toolName}
-          input={pendingPermission.request.input}
-          title={pendingPermission.request.title}
-          onRespond={handlePermissionResponse}
-        />
-      )}
+      {/* Agent View */}
+      {view === 'agent' && (
+        <Box flexDirection="column" flexGrow={1}>
+          <MessageList messages={messages} />
 
-      {loading && !pendingPermission && (
-        <Box paddingX={1}>
-          <Text color="yellow">● Agent is thinking...</Text>
+          {pendingPermission && (
+            <PermissionPopup
+              toolName={pendingPermission.request.toolName}
+              input={pendingPermission.request.input}
+              title={pendingPermission.request.title}
+              onRespond={handlePermissionResponse}
+            />
+          )}
+
+          {loading && !pendingPermission && (
+            <Box paddingX={1}>
+              <Text color="yellow">● Agent is thinking...</Text>
+            </Box>
+          )}
+
+          <InputArea onSubmit={handleSubmit} disabled={loading} />
         </Box>
       )}
 
-      <InputArea onSubmit={handleSubmit} disabled={loading} />
+      {/* Terminal View */}
+      {view === 'terminal' && (
+        <TerminalView active={view === 'terminal'} />
+      )}
     </Box>
   );
 }
