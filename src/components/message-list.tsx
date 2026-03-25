@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Text } from 'ink';
+
+export type MessageType = 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'system';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  messageType?: MessageType;
+  collapsible?: boolean;
 }
 
 interface MessageListProps {
@@ -22,16 +26,41 @@ const roleLabels: Record<Message['role'], string> = {
   system: 'System',
 };
 
+function CollapsibleMessage({ msg, index }: { msg: Message; index: number }) {
+  const [expanded, setExpanded] = useState(!msg.collapsible);
+
+  const label = msg.messageType === 'thinking'
+    ? '▸ Thinking'
+    : msg.messageType === 'tool_use'
+      ? '▸ Tool'
+      : roleLabels[msg.role];
+
+  if (msg.collapsible && !expanded) {
+    return (
+      <Box marginBottom={1}>
+        <Text color="gray" dimColor>
+          {label} ({msg.content.split('\n').length} lines) [collapsed]
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Text bold color={roleColors[msg.role]}>
+        {roleLabels[msg.role]}:
+        {msg.collapsible && <Text dimColor> [expanded]</Text>}
+      </Text>
+      <Text>{msg.content}</Text>
+    </Box>
+  );
+}
+
 export default function MessageList({ messages }: MessageListProps) {
   return (
     <Box flexDirection="column" flexGrow={1}>
       {messages.map((msg, i) => (
-        <Box key={i} flexDirection="column" marginBottom={1}>
-          <Text bold color={roleColors[msg.role]}>
-            {roleLabels[msg.role]}:
-          </Text>
-          <Text>{msg.content}</Text>
-        </Box>
+        <CollapsibleMessage key={i} msg={msg} index={i} />
       ))}
     </Box>
   );

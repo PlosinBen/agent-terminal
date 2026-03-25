@@ -182,7 +182,7 @@ export default function App() {
         } else if (msg.type === 'tool_use') {
           updateCurrent(s => ({
             ...s,
-            messages: [...s.messages, { role: 'system', content: `● ${msg.toolName}: ${msg.content}` }],
+            messages: [...s.messages, { role: 'system', content: `● ${msg.toolName}: ${msg.content}`, messageType: 'tool_use', collapsible: true }],
           }));
         }
       }
