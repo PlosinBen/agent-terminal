@@ -1,29 +1,20 @@
 {
   "name": "agent-terminal",
   "version": "0.1.0",
-  "description": "Agent terminal with ink + node-pty + claude-agent-sdk",
-  "type": "module",
-  "main": "dist/index.js",
+  "private": true,
+  "description": "Agent terminal — Electron + WebSocket",
+  "workspaces": ["server", "client"],
   "scripts": {
-    "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
-    "build": "tsc",
-    "dev": "tsx src/index.tsx",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.83",
-    "@xterm/headless": "^6.0.0",
-    "ink": "^5.2.0",
-    "marked": "^15.0.12",
-    "marked-terminal": "^7.3.0",
-    "node-pty": "^1.0.0",
-    "react": "^18.3.1"
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build:server": "npm run build -w server",
+    "build:client": "npm run build -w client",
+    "electron": "electron server/dist/main.js",
+    "start": "npm run build:server && npm run electron"
   },
   "devDependencies": {
-    "@types/marked-terminal": "^6.1.1",
-    "@types/node": "^25.5.0",
-    "@types/react": "^18.3.18",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0",
+    "concurrently": "^9.0.0"
   }
 }

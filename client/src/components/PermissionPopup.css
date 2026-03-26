@@ -1,0 +1,76 @@
+.permission-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.permission-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  max-width: 600px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.permission-header {
+  font-weight: bold;
+  font-size: 15px;
+  color: #e5c07b;
+}
+
+.permission-tool {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.permission-content {
+  background: var(--bg-primary);
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.permission-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.perm-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.perm-btn:hover {
+  background: var(--bg-primary);
+}
+
+.perm-allow {
+  border-color: #98c379;
+  color: #98c379;
+}
+
+.perm-deny {
+  border-color: #e06c75;
+  color: #e06c75;
+}

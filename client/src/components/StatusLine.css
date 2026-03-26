@@ -1,0 +1,30 @@
+.status-line {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  flex-shrink: 0;
+}
+
+.status-label {
+  color: var(--text-secondary);
+}
+
+.status-sep {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.status-branch {
+  color: var(--accent);
+}
+
+.status-seg-label {
+  color: var(--text-secondary);
+}

@@ -1,9 +1,11 @@
 import * as pty from 'node-pty';
-import type { AgentBackend, AgentMessage, PermissionHandler } from '../types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
 
 export class GeminiBackend implements AgentBackend {
   private ptyProcess: pty.IPty | null = null;
   private permissionHandler: PermissionHandler | null = null;
+  private initialized = false;
+  private initCallback: (() => void) | null = null;
 
   setPermissionHandler(handler: PermissionHandler): void {
     this.permissionHandler = handler;
@@ -25,7 +27,11 @@ export class GeminiBackend implements AgentBackend {
 
       this.ptyProcess = ptyProc;
 
-      // Collect output via a promise-based approach
+      if (!this.initialized) {
+        this.initialized = true;
+        this.initCallback?.();
+      }
+
       const output = await new Promise<string>((resolve, reject) => {
         let buffer = '';
 
@@ -42,7 +48,6 @@ export class GeminiBackend implements AgentBackend {
         });
       });
 
-      // Strip ANSI escape sequences
       const clean = output.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
 
       yield { type: 'result', content: clean };
@@ -59,5 +64,41 @@ export class GeminiBackend implements AgentBackend {
       this.ptyProcess.kill();
       this.ptyProcess = null;
     }
+  }
+
+  getStatusSegments(): StatusSegment[] {
+    return [{ value: 'gemini' }];
+  }
+
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  getModel(): string {
+    return 'gemini';
+  }
+
+  getPermissionMode(): string {
+    return 'default';
+  }
+
+  getEffort(): string {
+    return 'medium';
+  }
+
+  getProviderCommands(): CommandInfo[] {
+    return [];
+  }
+
+  getSlashCommands(): CommandInfo[] {
+    return [];
+  }
+
+  async executeCommand(_name: string, _args: string): Promise<ProviderCommandResult | null> {
+    return null;
+  }
+
+  onInit(callback: () => void): void {
+    this.initCallback = callback;
   }
 }
