@@ -235,7 +235,7 @@ export default function App() {
     // Handle commands
     const cmd = parseCommand(text);
     if (cmd) {
-      const result = executeCommand(cmd.command, cmd.args, current.project.cwd);
+      const result = executeCommand(cmd.command, cmd.args);
       updateCurrent(s => ({
         ...s,
         messages: [...s.messages, { role: 'system', content: result.content }],
