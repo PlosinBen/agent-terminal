@@ -20,22 +20,22 @@ export default function InputArea({ onSubmit, onCancel, disabled, backend }: Inp
   const [input, setInput] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Build dynamic options for commands that depend on backend state
+  // Build dynamic options for commands that depend on backend state (available from cache or after init)
   const dynamicOptions = useMemo((): Record<string, { value: string; desc: string }[]> => {
-    if (!backend?.isInitialized()) return {};
+    if (!backend) return {};
     return {
       model: backend.getModels().map(m => ({ value: m.value, desc: m.displayName })),
       mode: backend.getPermissionModes().map(m => ({ value: m, desc: '' })),
       effort: backend.getEffortLevels().map(l => ({ value: l, desc: '' })),
     };
-  }, [backend?.isInitialized()]);
+  }, [backend, backend?.isInitialized()]);
 
   // Merge app commands with SDK slash commands
   const allCommands = useMemo(() => {
     const sdkCmds = backend?.getSlashCommands() ?? [];
     const sdkItems = sdkCmds.map(c => ({ name: c.name, args: c.argumentHint, desc: c.description }));
     return [...COMMANDS, ...sdkItems];
-  }, [backend?.isInitialized()]);
+  }, [backend, backend?.isInitialized()]);
 
   // Determine autocomplete items based on input state
   const items = useMemo((): AutocompleteItem[] => {

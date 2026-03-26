@@ -1,6 +1,7 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
-import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query, ModelInfo, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, ModelOption, CommandInfo } from '../types.js';
+import { loadProviderCache, saveProviderCache } from '../../core/provider-cache.js';
 
 const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
   default: { label: 'Prompt' },
@@ -22,8 +23,6 @@ export class ClaudeBackend implements AgentBackend {
   private outputTokens = 0;
   private rateLimits = new Map<string, { utilization: number; resetsAt?: number }>();
   private initialized = false;
-  private models: ModelInfo[] = [];
-  private slashCommands: SlashCommand[] = [];
   private onInitCallback: (() => void) | null = null;
 
   constructor(opts?: { model?: string; permissionMode?: string; effort?: string }) {
@@ -49,11 +48,11 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getModels(): ModelOption[] {
-    return this.models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description }));
+    return loadProviderCache('claude')?.models ?? [];
   }
 
   getSlashCommands(): CommandInfo[] {
-    return this.slashCommands.map(c => ({ name: c.name, description: c.description, argumentHint: c.argumentHint }));
+    return loadProviderCache('claude')?.slashCommands ?? [];
   }
 
   onInit(callback: () => void): void {
@@ -152,8 +151,18 @@ export class ClaudeBackend implements AgentBackend {
             if (sysMsg.permissionMode) this.permissionMode = String(sysMsg.permissionMode);
             if (!this.initialized) {
               this.initialized = true;
-              generator.supportedModels().then(m => { this.models = m; }).catch(() => {});
-              generator.supportedCommands().then(c => { this.slashCommands = c; }).catch(() => {});
+              Promise.all([
+                generator.supportedModels().catch(() => []),
+                generator.supportedCommands().catch(() => []),
+              ]).then(([models, commands]) => {
+                saveProviderCache('claude', {
+                  models: models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description })),
+                  slashCommands: commands.map(c => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+                  permissionModes: ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'],
+                  effortLevels: ['low', 'medium', 'high', 'max'],
+                  cachedAt: new Date().toISOString(),
+                });
+              });
               this.onInitCallback?.();
             }
           }
@@ -214,7 +223,7 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getPermissionModes(): string[] {
-    return ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'];
+    return loadProviderCache('claude')?.permissionModes ?? ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'];
   }
 
   async setPermissionMode(mode: string): Promise<void> {
@@ -225,7 +234,7 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getEffortLevels(): string[] {
-    return ['low', 'medium', 'high', 'max'];
+    return loadProviderCache('claude')?.effortLevels ?? ['low', 'medium', 'high', 'max'];
   }
 
   async setEffort(level: string): Promise<void> {
