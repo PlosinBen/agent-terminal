@@ -79,32 +79,35 @@ function WelcomeScreen() {
 
   return (
     <Box flexDirection="column" flexGrow={1} justifyContent="center" paddingX={2}>
-      <Text bold color="cyan">{
+      {/* Title + Version */}
+      <Box flexDirection="column" marginBottom={1}>
+        <Text bold color="cyan">{
 ` ▄▀█ █▀▀ █▀▀ █▄ █ ▀█▀   ▀█▀ █▀▀ █▀█ █▀▄▀█ █ █▄ █ ▄▀█ █
  █▀█ █▄█ ██▄ █ ▀█  █     █  ██▄ █▀▄ █ ▀ █ █ █ ▀█ █▀█ █▄▄`}
-      </Text>
-      <Text dimColor>v0.1.0</Text>
-      <Text>{''}</Text>
+        </Text>
+        <Text dimColor>v0.1.0</Text>
+      </Box>
 
-      {claudeStatus.installed ? (
-        <>
+      {/* Agent status */}
+      <Box flexDirection="column" marginBottom={1}>
+        {claudeStatus.installed ? (
           <Text color="green">Claude Code: {claudeStatus.version}</Text>
-          <Text>{''}</Text>
-          <Text dimColor>Press <Text color="cyan">Ctrl+N</Text> to add a project and get started</Text>
-        </>
-      ) : (
-        <>
-          <Text color="red">Claude Code: not found</Text>
-          <Text>{''}</Text>
-          <Text>agent-terminal requires Claude Code CLI to be installed.</Text>
-          <Text>{''}</Text>
-          <Text dimColor>Install: npm install -g @anthropic-ai/claude-code</Text>
-          <Text dimColor>Docs:    https://docs.anthropic.com/en/docs/claude-code</Text>
-        </>
-      )}
+        ) : (
+          <>
+            <Text color="red">Claude Code: not found</Text>
+            <Text>{''}</Text>
+            <Text>agent-terminal requires Claude Code CLI to be installed.</Text>
+            <Text dimColor>Install: npm install -g @anthropic-ai/claude-code</Text>
+            <Text dimColor>Docs:    https://docs.anthropic.com/en/docs/claude-code</Text>
+          </>
+        )}
+      </Box>
 
-      <Text>{''}</Text>
-      <Text dimColor>Ctrl+D to quit</Text>
+      {/* Keybindings */}
+      <Box flexDirection="column">
+        <Text dimColor>Press <Text color="cyan">Ctrl+N</Text> to add a project and get started</Text>
+        <Text dimColor>Press <Text color="cyan">Esc</Text> to quit</Text>
+      </Box>
     </Box>
   );
 }
@@ -156,7 +159,7 @@ export default function App() {
     // On welcome screen, only allow Ctrl+N and Ctrl+D
     if (showWelcome) {
       if (key.ctrl && ch === 'n') { setAddingProject(true); return; }
-      if (key.ctrl && ch === 'd') { exit(); return; }
+      if (key.escape) { exit(); return; }
       return;
     }
 
