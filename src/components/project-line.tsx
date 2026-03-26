@@ -25,16 +25,14 @@ export default function ProjectLine({ projects, activeIndex }: ProjectLineProps)
           {i > 0 && <Text> </Text>}
           <Text
             bold={i === activeIndex}
-            inverse={i === activeIndex}
-            backgroundColor="#00875f"
-            color="white"
+            color={i === activeIndex ? 'cyan' : 'gray'}
           >
             [{i + 1}:{proj.name} </Text>
-          <Text backgroundColor="#00875f" color={STATUS_COLORS[proj.status]}>●</Text>
-          <Text backgroundColor="#00875f" color="white">]</Text>
+          <Text color={STATUS_COLORS[proj.status]}>●</Text>
+          <Text color={i === activeIndex ? 'cyan' : 'gray'}>]</Text>
         </React.Fragment>
       ))}
-      <Text backgroundColor="#00875f" dimColor>  Alt+←/→</Text>
+      <Text dimColor>  Alt+1~9</Text>
     </Box>
   );
 }
