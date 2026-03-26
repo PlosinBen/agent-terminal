@@ -4,7 +4,7 @@ import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
 import PermissionPopup from './components/permission-popup.js';
 import TerminalView from './components/terminal-view.js';
-import StatusLine, { type StatusInfo } from './components/status-line.js';
+import StatusLine from './components/status-line.js';
 import ProjectLine, { type ProjectInfo } from './components/project-line.js';
 import NotificationBar, { type Notification } from './components/notification-bar.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
@@ -28,9 +28,6 @@ interface ProjectState {
   loading: boolean;
   pendingPermission: PendingPermission | null;
   turns: number;
-  costUsd: number;
-  inputTokens: number;
-  outputTokens: number;
 }
 
 function getGitBranch(cwd: string): string {
@@ -50,9 +47,6 @@ function createProjectState(cwd: string): ProjectState {
     loading: false,
     pendingPermission: null,
     turns: 0,
-    costUsd: 0,
-    inputTokens: 0,
-    outputTokens: 0,
   };
 }
 
@@ -265,12 +259,6 @@ export default function App() {
               return s;
             });
           }
-          updateCurrent(s => ({
-            ...s,
-            costUsd: s.costUsd + (msg.costUsd ?? 0),
-            inputTokens: msg.inputTokens ?? s.inputTokens,
-            outputTokens: msg.outputTokens ?? s.outputTokens,
-          }));
         } else if (msg.type === 'text') {
           assistantText += msg.content;
           const text = assistantText;
@@ -340,23 +328,11 @@ export default function App() {
   if (!current) return null;
 
   // Build status info
-  const agentStatus: StatusInfo['agentStatus'] = current.pendingPermission
+  const agentStatus: 'idle' | 'running' | 'attention' = current.pendingPermission
     ? 'attention'
     : current.loading
       ? 'running'
       : 'idle';
-
-  const status: StatusInfo = {
-    model: 'opus',
-    inputTokens: current.inputTokens,
-    outputTokens: current.outputTokens,
-    costUsd: current.costUsd,
-    contextPct: 0,
-    turns: current.turns,
-    gitBranch: getGitBranch(current.project.cwd),
-    permissionMode: 'default',
-    agentStatus,
-  };
 
   const projectInfos: ProjectInfo[] = projectStates.map(ps => ({
     name: ps.project.name,
@@ -404,7 +380,7 @@ export default function App() {
       {/* Bottom bars — agent view only */}
       {view === 'agent' && (
         <>
-          <StatusLine status={status} />
+          <StatusLine agentStatus={agentStatus} gitBranch={getGitBranch(current.project.cwd)} segments={current.backend.getStatusSegments()} />
           <ProjectLine projects={projectInfos} activeIndex={activeIndex} />
         </>
       )}

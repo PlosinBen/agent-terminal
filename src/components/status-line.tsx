@@ -1,40 +1,36 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import type { StatusSegment } from '../backend/types.js';
 
-export interface StatusInfo {
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  contextPct: number;
-  turns: number;
-  gitBranch: string;
-  permissionMode: string;
+export interface StatusLineProps {
   agentStatus: 'idle' | 'running' | 'attention';
+  gitBranch: string;
+  segments: StatusSegment[];
 }
 
-interface StatusLineProps {
-  status: StatusInfo;
-}
-
-const STATUS_COLORS: Record<StatusInfo['agentStatus'], string> = {
+const STATUS_COLORS: Record<StatusLineProps['agentStatus'], string> = {
   idle: 'white',
   running: 'yellow',
   attention: 'red',
 };
 
-export default function StatusLine({ status }: StatusLineProps) {
-  const tokens = `${(status.inputTokens / 1000).toFixed(0)}k+${(status.outputTokens / 1000).toFixed(0)}k`;
-  const cost = `$${status.costUsd.toFixed(3)}`;
-  const ctx = `ctx ${status.contextPct}%`;
-
+export default function StatusLine({ agentStatus, gitBranch, segments }: StatusLineProps) {
   return (
     <Box paddingX={1}>
-      <Text backgroundColor="#1a3a2a" color={STATUS_COLORS[status.agentStatus]}>● </Text>
-      <Text backgroundColor="#1a3a2a" color="gray">
-        {status.model} | {tokens} | {cost} | {ctx} | {status.turns}t | </Text>
-      <Text backgroundColor="#1a3a2a" color="cyan">{status.gitBranch}</Text>
-      <Text backgroundColor="#1a3a2a" color="gray"> | {status.permissionMode}</Text>
+      {/* Common area */}
+      <Text color={STATUS_COLORS[agentStatus]}>● </Text>
+      <Text dimColor>{agentStatus}</Text>
+      <Text dimColor> | </Text>
+      <Text color="cyan">{gitBranch}</Text>
+
+      {/* Provider area */}
+      {segments.map((seg, i) => (
+        <React.Fragment key={i}>
+          <Text dimColor> | </Text>
+          {seg.label && <Text dimColor>{seg.label}:</Text>}
+          <Text color={seg.color ?? 'gray'}>{seg.value}</Text>
+        </React.Fragment>
+      ))}
     </Box>
   );
 }

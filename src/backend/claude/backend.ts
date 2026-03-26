@@ -1,10 +1,14 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentBackend, AgentMessage, PermissionHandler } from '../types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment } from '../types.js';
 
 export class ClaudeBackend implements AgentBackend {
   private permissionHandler: PermissionHandler | null = null;
   private sessionId: string | undefined;
+  private model = 'opus';
+  private costUsd = 0;
+  private inputTokens = 0;
+  private outputTokens = 0;
 
   setPermissionHandler(handler: PermissionHandler): void {
     this.permissionHandler = handler;
@@ -64,6 +68,9 @@ export class ClaudeBackend implements AgentBackend {
           const result = msg as SDKResultSuccess | SDKResultError;
           if (result.subtype === 'success') {
             const success = result as SDKResultSuccess;
+            this.costUsd += success.total_cost_usd ?? 0;
+            this.inputTokens = success.usage.input_tokens;
+            this.outputTokens = success.usage.output_tokens;
             yield {
               type: 'result',
               content: success.result,
@@ -84,8 +91,13 @@ export class ClaudeBackend implements AgentBackend {
         }
 
         case 'system': {
+          const sysMsg = msg as Record<string, unknown>;
+          // Capture model name from init message
+          if (sysMsg.subtype === 'init' && sysMsg.model) {
+            this.model = String(sysMsg.model);
+          }
           if ('subtype' in msg) {
-            yield { type: 'system', content: `[${(msg as Record<string, unknown>).subtype}]` };
+            yield { type: 'system', content: `[${sysMsg.subtype}]` };
           }
           break;
         }
@@ -95,6 +107,15 @@ export class ClaudeBackend implements AgentBackend {
           break;
       }
     }
+  }
+
+  getStatusSegments(): StatusSegment[] {
+    const tokens = `${(this.inputTokens / 1000).toFixed(0)}k+${(this.outputTokens / 1000).toFixed(0)}k`;
+    return [
+      { value: this.model },
+      { value: tokens },
+      { value: `$${this.costUsd.toFixed(3)}` },
+    ];
   }
 
   stop(): void {
