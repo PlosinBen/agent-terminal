@@ -28,8 +28,23 @@ body {
   font-size: 14px;
 }
 
-.app {
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.main-area {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1;
+  min-width: 0;
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
 }

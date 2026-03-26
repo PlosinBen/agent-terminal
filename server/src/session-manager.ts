@@ -17,7 +17,7 @@ interface ProjectSession {
 
 function getGitBranch(cwd: string): string {
   try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', cwd }).trim();
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', cwd, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch {
     return '-';
   }
