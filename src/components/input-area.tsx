@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { COMMANDS, MODELS } from '../core/commands.js';
+import { COMMANDS } from '../core/commands.js';
+import type { AgentBackend } from '../backend/types.js';
 
 interface InputAreaProps {
   onSubmit: (text: string) => void;
   onCancel?: () => void;
   disabled?: boolean;
+  backend?: AgentBackend;
 }
 
 interface AutocompleteItem {
@@ -14,9 +16,26 @@ interface AutocompleteItem {
   value: string; // what gets filled into input
 }
 
-export default function InputArea({ onSubmit, onCancel, disabled }: InputAreaProps) {
+export default function InputArea({ onSubmit, onCancel, disabled, backend }: InputAreaProps) {
   const [input, setInput] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Build dynamic options for commands that depend on backend state
+  const dynamicOptions = useMemo((): Record<string, { value: string; desc: string }[]> => {
+    if (!backend?.isInitialized()) return {};
+    return {
+      model: backend.getModels().map(m => ({ value: m.value, desc: m.displayName })),
+      mode: backend.getPermissionModes().map(m => ({ value: m, desc: '' })),
+      effort: backend.getEffortLevels().map(l => ({ value: l, desc: '' })),
+    };
+  }, [backend?.isInitialized()]);
+
+  // Merge app commands with SDK slash commands
+  const allCommands = useMemo(() => {
+    const sdkCmds = backend?.getSlashCommands() ?? [];
+    const sdkItems = sdkCmds.map(c => ({ name: c.name, args: c.argumentHint, desc: c.description }));
+    return [...COMMANDS, ...sdkItems];
+  }, [backend?.isInitialized()]);
 
   // Determine autocomplete items based on input state
   const items = useMemo((): AutocompleteItem[] => {
@@ -27,7 +46,7 @@ export default function InputArea({ onSubmit, onCancel, disabled }: InputAreaPro
 
     if (!hasSpace) {
       // Command-level autocomplete
-      return COMMANDS
+      return allCommands
         .filter(cmd => cmd.name.startsWith(cmdPart))
         .map(cmd => ({
           label: `/${cmd.name}${cmd.args ? ' ' + cmd.args : ''}`,
@@ -36,24 +55,20 @@ export default function InputArea({ onSubmit, onCancel, disabled }: InputAreaPro
         }));
     }
 
-    // Argument-level autocomplete
-    const cmd = COMMANDS.find(c => c.name === cmdPart);
-    if (!cmd?.options) return [];
+    // Argument-level autocomplete from dynamic options
+    const opts = dynamicOptions[cmdPart];
+    if (!opts) return [];
 
     const argPart = input.slice(input.indexOf(' ') + 1).toLowerCase();
-    const filtered = cmd.options.filter(opt => opt.startsWith(argPart));
+    const filtered = opts.filter(opt => opt.value.toLowerCase().startsWith(argPart));
     if (filtered.length === 0) return [];
 
-    // Get descriptions for models
-    return filtered.map(opt => {
-      const modelInfo = cmd.name === 'model' ? MODELS.find(m => m.name === opt) : null;
-      return {
-        label: opt,
-        desc: modelInfo?.desc ?? '',
-        value: `/${cmd.name} ${opt}`,
-      };
-    });
-  }, [input]);
+    return filtered.map(opt => ({
+      label: opt.value,
+      desc: opt.desc,
+      value: `/${cmdPart} ${opt.value}`,
+    }));
+  }, [input, allCommands, dynamicOptions]);
 
   const showAutocomplete = items.length > 0 && !disabled;
 

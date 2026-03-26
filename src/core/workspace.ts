@@ -9,7 +9,9 @@ export interface ProjectConfig {
   createdAt: string;
   lastOpenedAt: string;
   sessionId?: string;
+  model?: string;
   permissionMode?: string;
+  effort?: string;
 }
 
 const PROJECTS_DIR = path.join(os.homedir(), '.config', 'agent-terminal', 'projects');

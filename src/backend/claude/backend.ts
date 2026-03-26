@@ -1,6 +1,6 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
-import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment } from '../types.js';
+import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query, ModelInfo, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
+import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, ModelOption, CommandInfo } from '../types.js';
 
 const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
   default: { label: 'Prompt' },
@@ -16,13 +16,48 @@ export class ClaudeBackend implements AgentBackend {
   private activeQuery: Query | null = null;
   private model = 'opus';
   private permissionMode: string = 'default';
+  private effort: string = 'high';
   private costUsd = 0;
   private inputTokens = 0;
   private outputTokens = 0;
   private rateLimits = new Map<string, { utilization: number; resetsAt?: number }>();
+  private initialized = false;
+  private models: ModelInfo[] = [];
+  private slashCommands: SlashCommand[] = [];
+  private onInitCallback: (() => void) | null = null;
 
-  constructor(opts?: { permissionMode?: string }) {
+  constructor(opts?: { model?: string; permissionMode?: string; effort?: string }) {
+    if (opts?.model) this.model = opts.model;
     if (opts?.permissionMode) this.permissionMode = opts.permissionMode;
+    if (opts?.effort) this.effort = opts.effort;
+  }
+
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  getModel(): string {
+    return this.model;
+  }
+
+  getPermissionMode(): string {
+    return this.permissionMode;
+  }
+
+  getEffort(): string {
+    return this.effort;
+  }
+
+  getModels(): ModelOption[] {
+    return this.models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description }));
+  }
+
+  getSlashCommands(): CommandInfo[] {
+    return this.slashCommands.map(c => ({ name: c.name, description: c.description, argumentHint: c.argumentHint }));
+  }
+
+  onInit(callback: () => void): void {
+    this.onInitCallback = callback;
   }
 
   setPermissionHandler(handler: PermissionHandler): void {
@@ -46,7 +81,9 @@ export class ClaudeBackend implements AgentBackend {
       options: {
         cwd: opts?.cwd ?? process.cwd(),
         canUseTool,
+        model: this.model,
         permissionMode: this.permissionMode as PermissionMode,
+        effort: this.effort as 'low' | 'medium' | 'high' | 'max',
         ...(this.sessionId ? { resume: this.sessionId } : {}),
       },
     });
@@ -113,6 +150,12 @@ export class ClaudeBackend implements AgentBackend {
           if (sysMsg.subtype === 'init') {
             if (sysMsg.model) this.model = String(sysMsg.model);
             if (sysMsg.permissionMode) this.permissionMode = String(sysMsg.permissionMode);
+            if (!this.initialized) {
+              this.initialized = true;
+              generator.supportedModels().then(m => { this.models = m; }).catch(() => {});
+              generator.supportedCommands().then(c => { this.slashCommands = c; }).catch(() => {});
+              this.onInitCallback?.();
+            }
           }
           if ('subtype' in msg) {
             yield { type: 'system', content: `[${sysMsg.subtype}]` };
@@ -139,10 +182,12 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getStatusSegments(): StatusSegment[] {
+    if (!this.initialized) return [];
     const tokens = `${(this.inputTokens / 1000).toFixed(0)}k+${(this.outputTokens / 1000).toFixed(0)}k`;
     const segments: StatusSegment[] = [
       { value: this.model },
       { value: (PERMISSION_MODE_DISPLAY[this.permissionMode]?.label ?? this.permissionMode), color: PERMISSION_MODE_DISPLAY[this.permissionMode]?.color },
+      { label: 'effort', value: this.effort },
       { value: tokens },
       { value: `$${this.costUsd.toFixed(3)}` },
     ];
@@ -177,6 +222,14 @@ export class ClaudeBackend implements AgentBackend {
     if (this.activeQuery) {
       await this.activeQuery.setPermissionMode(mode as PermissionMode);
     }
+  }
+
+  getEffortLevels(): string[] {
+    return ['low', 'medium', 'high', 'max'];
+  }
+
+  async setEffort(level: string): Promise<void> {
+    this.effort = level;
   }
 
   stop(): void {

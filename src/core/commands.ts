@@ -1,14 +1,9 @@
 import { listSessions } from './session.js';
 
-export const MODELS = [
-  { name: 'opus', desc: 'Claude Opus — 最強' },
-  { name: 'sonnet', desc: 'Claude Sonnet — 平衡' },
-  { name: 'haiku', desc: 'Claude Haiku — 快速' },
-];
-
 export const COMMANDS = [
-  { name: 'mode', args: '<mode>', desc: '設定權限模式', options: ['default', 'acceptEdits', 'bypassPermissions', 'plan'] },
-  { name: 'model', args: '<name>', desc: '設定模型', options: MODELS.map(m => m.name) },
+  { name: 'mode', args: '<mode>', desc: '設定權限模式' },
+  { name: 'model', args: '<name>', desc: '設定模型' },
+  { name: 'effort', args: '<level>', desc: '設定思考程度' },
   { name: 'sessions', args: '', desc: '列出已存 sessions' },
   { name: 'resume', args: '[id]', desc: '恢復 session' },
   { name: 'fork', args: '', desc: 'Fork 當前 session' },
@@ -40,6 +35,10 @@ export function executeCommand(command: string, args: string, cwd?: string): Com
     case 'model':
       if (!args) return { type: 'message', content: 'Usage: /model <name>' };
       return { type: 'action', content: `Model set to: ${args}`, action: 'setModel', payload: args };
+
+    case 'effort':
+      if (!args) return { type: 'message', content: 'Usage: /effort <low|medium|high|max>' };
+      return { type: 'action', content: `Effort set to: ${args}`, action: 'setEffort', payload: args };
 
     case 'clear':
       return { type: 'action', content: 'Screen cleared', action: 'clear' };

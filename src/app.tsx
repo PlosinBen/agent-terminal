@@ -40,7 +40,7 @@ function getGitBranch(cwd: string): string {
 
 function createProjectState(cwd: string): ProjectState {
   const project = createProject(cwd);
-  const backend = new ClaudeBackend({ permissionMode: project.permissionMode });
+  const backend = new ClaudeBackend({ model: project.model, permissionMode: project.permissionMode, effort: project.effort });
   return {
     project,
     backend,
@@ -156,7 +156,7 @@ export default function App() {
     setActiveIndex(0);
   }, [savedProjects]);
 
-  // Set up permission handler for each project
+  // Set up permission handler and onInit callback for each project
   useEffect(() => {
     projectStates.forEach((ps, idx) => {
       ps.backend.setPermissionHandler((req) => {
@@ -168,6 +168,19 @@ export default function App() {
             i === idx ? { ...s, pendingPermission: { request: req, resolve } } : s
           ));
         });
+      });
+      ps.backend.onInit(() => {
+        setProjectStates(prev => prev.map((s, i) => {
+          if (i !== idx) return s;
+          const updated = {
+            ...s.project,
+            model: s.backend.getModel(),
+            permissionMode: s.backend.getPermissionMode(),
+            effort: s.backend.getEffort(),
+          };
+          saveProject(updated);
+          return { ...s, project: updated };
+        }));
       });
     });
   }, [projectStates.length]);
@@ -369,7 +382,7 @@ export default function App() {
                 </Box>
               )}
 
-              <InputArea onSubmit={handleSubmit} disabled={current.loading} />
+              <InputArea onSubmit={handleSubmit} disabled={current.loading} backend={current.backend} />
             </>
           )}
         </Box>

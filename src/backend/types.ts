@@ -26,6 +26,18 @@ export interface StatusSegment {
   color?: string;   // value color, e.g. "cyan"
 }
 
+export interface CommandInfo {
+  name: string;
+  description: string;
+  argumentHint: string;
+}
+
+export interface ModelOption {
+  value: string;
+  displayName: string;
+  description: string;
+}
+
 export interface AgentBackend {
   query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage>;
   stop(): void;
@@ -33,4 +45,13 @@ export interface AgentBackend {
   getStatusSegments(): StatusSegment[];
   getPermissionModes(): string[];
   setPermissionMode(mode: string): Promise<void>;
+  isInitialized(): boolean;
+  getModel(): string;
+  getPermissionMode(): string;
+  getEffort(): string;
+  getModels(): ModelOption[];
+  getSlashCommands(): CommandInfo[];
+  getEffortLevels(): string[];
+  setEffort(level: string): Promise<void>;
+  onInit(callback: () => void): void;
 }
