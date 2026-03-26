@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import * as pty from 'node-pty';
+import { logger } from '../core/logger.js';
 
 interface TerminalViewProps {
   active: boolean;
@@ -14,33 +15,40 @@ export default function TerminalView({ active, cwd }: TerminalViewProps) {
   const maxLines = (stdout?.rows ?? 24) - 4; // Reserve space for status/project lines
 
   useEffect(() => {
-    const shell = process.env.SHELL || '/bin/bash';
+    const shell = process.env.SHELL || '/bin/zsh';
     const cols = stdout?.columns ?? 80;
     const rows = stdout?.rows ?? 24;
 
-    const term = pty.spawn(shell, [], {
-      name: 'xterm-256color',
-      cols,
-      rows,
-      cwd: cwd ?? process.cwd(),
-      env: process.env as Record<string, string>,
-    });
+    const spawnCwd = cwd ?? process.cwd();
+    logger.debug(`pty.spawn: shell=${shell} cwd=${spawnCwd} cols=${cols} rows=${rows}`);
 
-    term.onData((data: string) => {
-      // Strip ANSI escape sequences for basic display
-      const clean = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-      setOutput(prev => {
-        const lines = [...prev, ...clean.split('\n')];
-        return lines.slice(-200); // Keep last 200 lines
+    try {
+      const term = pty.spawn(shell, [], {
+        name: 'xterm-256color',
+        cols,
+        rows,
+        cwd: spawnCwd,
+        env: process.env as Record<string, string>,
       });
-    });
 
-    ptyRef.current = term;
+      term.onData((data: string) => {
+        // Strip ANSI escape sequences for basic display
+        const clean = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+        setOutput(prev => {
+          const lines = [...prev, ...clean.split('\n')];
+          return lines.slice(-200); // Keep last 200 lines
+        });
+      });
 
-    return () => {
-      term.kill();
-      ptyRef.current = null;
-    };
+      ptyRef.current = term;
+
+      return () => {
+        term.kill();
+        ptyRef.current = null;
+      };
+    } catch (err) {
+      setOutput([`Failed to spawn terminal: ${err instanceof Error ? err.message : String(err)}`]);
+    }
   }, [cwd]);
 
   useInput((ch, key) => {

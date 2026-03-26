@@ -12,6 +12,7 @@ import type { AgentBackend, PermissionRequest } from './backend/types.js';
 import { createProject, saveProject, listProjects, type ProjectConfig } from './core/workspace.js';
 import { parseCommand, executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
+import { logger } from './core/logger.js';
 
 type ViewMode = 'agent' | 'terminal';
 
@@ -178,6 +179,10 @@ export default function App() {
 
   // Global key handler
   useInput((ch, key) => {
+    const mods = [key.ctrl && 'ctrl', key.shift && 'shift', key.meta && 'meta'].filter(Boolean).join('+');
+    const name = ['return','escape','tab','backspace','delete','upArrow','downArrow','leftArrow','rightArrow','pageUp','pageDown'].find(k => key[k as keyof typeof key]);
+    const display = [mods, name || JSON.stringify(ch)].filter(Boolean).join('+');
+    logger.debug(`key: ${display}`);
     // On welcome screen, only allow Ctrl+N and Ctrl+D
     if (showWelcome) {
       if (key.return && savedProjects.length > 0) { openSavedProjects(); return; }
@@ -186,9 +191,8 @@ export default function App() {
       return;
     }
 
-    // View switching: Alt+Left/Right
-    if (key.meta && key.leftArrow) { setView('agent'); return; }
-    if (key.meta && key.rightArrow) { setView('terminal'); return; }
+    // View switching: Ctrl+W
+    if (key.ctrl && ch === 'w') { setView(v => v === 'agent' ? 'terminal' : 'agent'); return; }
 
     // Project switching: Alt+1~9
     if (key.meta && ch >= '1' && ch <= '9') {
@@ -200,17 +204,6 @@ export default function App() {
     // New project: Ctrl+N
     if (key.ctrl && ch === 'n') {
       setAddingProject(true);
-      return;
-    }
-
-    // Close project: Ctrl+W
-    if (key.ctrl && ch === 'w') {
-      if (projectStates.length <= 1) {
-        exit();
-        return;
-      }
-      setProjectStates(prev => prev.filter((_, i) => i !== activeIndex));
-      setActiveIndex(i => Math.min(i, projectStates.length - 2));
       return;
     }
 

@@ -12,7 +12,7 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 };
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-const LOG_DIR = path.join(os.homedir(), '.config', 'agent-terminal');
+const LOG_DIR = process.cwd();
 const LOG_PATH = path.join(LOG_DIR, 'debug.log');
 
 class Logger {

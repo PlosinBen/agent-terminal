@@ -1,6 +1,9 @@
 import React from 'react';
 import { render } from 'ink';
 import App from './app.js';
+import { logger } from './core/logger.js';
+
+logger.setLevel('debug');
 
 // Enter alternate screen buffer — restores original terminal on exit
 process.stdout.write('\x1b[?1049h');
