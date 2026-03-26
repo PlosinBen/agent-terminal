@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.83",
+    "@xterm/headless": "^6.0.0",
     "ink": "^5.2.0",
     "marked": "^15.0.12",
     "marked-terminal": "^7.3.0",

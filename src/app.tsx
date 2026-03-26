@@ -398,17 +398,16 @@ export default function App() {
         </Box>
       )}
 
-      {/* Terminal View */}
-      {view === 'terminal' && (
-        <Box flexDirection="column" flexGrow={1}>
-          <NotificationBar notification={notification} />
-          <TerminalView active={view === 'terminal'} cwd={current.project.cwd} />
-        </Box>
-      )}
+      {/* Terminal View — always mounted, active controls stdin/stdout */}
+      <TerminalView active={view === 'terminal'} cwd={current.project.cwd} onSwitchView={() => setView('agent')} projects={projectInfos} activeIndex={activeIndex} />
 
-      {/* Bottom bars — always visible */}
-      <StatusLine status={status} />
-      <ProjectLine projects={projectInfos} activeIndex={activeIndex} />
+      {/* Bottom bars — agent view only */}
+      {view === 'agent' && (
+        <>
+          <StatusLine status={status} />
+          <ProjectLine projects={projectInfos} activeIndex={activeIndex} />
+        </>
+      )}
     </Box>
   );
 }
