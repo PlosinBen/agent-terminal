@@ -1,6 +1,6 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, ModelOption, CommandInfo } from '../types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
 import { loadProviderCache, saveProviderCache } from '../../core/provider-cache.js';
 
 const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
@@ -47,12 +47,36 @@ export class ClaudeBackend implements AgentBackend {
     return this.effort;
   }
 
-  getModels(): ModelOption[] {
-    return loadProviderCache('claude')?.models ?? [];
+  getProviderCommands(): CommandInfo[] {
+    const cache = loadProviderCache('claude');
+    return [
+      {
+        name: 'model',
+        description: '設定模型',
+        argumentHint: '<name>',
+        options: () => (cache?.models ?? []).map(m => ({ value: m.value, desc: m.displayName })),
+      },
+      {
+        name: 'mode',
+        description: '設定權限模式',
+        argumentHint: '<mode>',
+        options: () => (cache?.permissionModes ?? ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk']).map(m => ({ value: m, desc: '' })),
+      },
+      {
+        name: 'effort',
+        description: '設定思考程度',
+        argumentHint: '<level>',
+        options: () => (cache?.effortLevels ?? ['low', 'medium', 'high', 'max']).map(l => ({ value: l, desc: '' })),
+      },
+    ];
   }
 
   getSlashCommands(): CommandInfo[] {
-    return loadProviderCache('claude')?.slashCommands ?? [];
+    return (loadProviderCache('claude')?.slashCommands ?? []).map(c => ({
+      name: c.name,
+      description: c.description,
+      argumentHint: c.argumentHint,
+    }));
   }
 
   onInit(callback: () => void): void {
@@ -222,23 +246,29 @@ export class ClaudeBackend implements AgentBackend {
     return segments;
   }
 
-  getPermissionModes(): string[] {
-    return loadProviderCache('claude')?.permissionModes ?? ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'];
-  }
+  async executeCommand(name: string, args: string): Promise<ProviderCommandResult | null> {
+    switch (name) {
+      case 'model':
+        if (!args) return { message: 'Usage: /model <name>' };
+        this.model = args;
+        return { message: `Model set to: ${args}`, updated: { model: args } };
 
-  async setPermissionMode(mode: string): Promise<void> {
-    this.permissionMode = mode;
-    if (this.activeQuery) {
-      await this.activeQuery.setPermissionMode(mode as PermissionMode);
+      case 'mode':
+        if (!args) return { message: 'Usage: /mode <mode>' };
+        this.permissionMode = args;
+        if (this.activeQuery) {
+          await this.activeQuery.setPermissionMode(args as PermissionMode);
+        }
+        return { message: `Permission mode set to: ${args}`, updated: { permissionMode: args } };
+
+      case 'effort':
+        if (!args) return { message: 'Usage: /effort <low|medium|high|max>' };
+        this.effort = args;
+        return { message: `Effort set to: ${args}`, updated: { effort: args } };
+
+      default:
+        return null;
     }
-  }
-
-  getEffortLevels(): string[] {
-    return loadProviderCache('claude')?.effortLevels ?? ['low', 'medium', 'high', 'max'];
-  }
-
-  async setEffort(level: string): Promise<void> {
-    this.effort = level;
   }
 
   stop(): void {

@@ -235,16 +235,43 @@ export default function App() {
     // Handle commands
     const cmd = parseCommand(text);
     if (cmd) {
-      const result = executeCommand(cmd.command, cmd.args);
+      // Try app-level command first
+      const appResult = executeCommand(cmd.command);
+      if (appResult) {
+        updateCurrent(s => ({
+          ...s,
+          messages: [...s.messages, { role: 'system', content: appResult.content }],
+        }));
+        if (appResult.action === 'clear') {
+          updateCurrent(s => ({ ...s, messages: [] }));
+        } else if (appResult.action === 'quit') {
+          exit();
+        }
+        return;
+      }
+
+      // Try provider command
+      const providerResult = await current.backend.executeCommand(cmd.command, cmd.args);
+      if (providerResult) {
+        updateCurrent(s => ({
+          ...s,
+          messages: [...s.messages, { role: 'system', content: providerResult.message }],
+        }));
+        if (providerResult.updated) {
+          updateCurrent(s => {
+            const updated = { ...s.project, ...providerResult.updated };
+            saveProject(updated);
+            return { ...s, project: updated };
+          });
+        }
+        return;
+      }
+
+      // Unknown command
       updateCurrent(s => ({
         ...s,
-        messages: [...s.messages, { role: 'system', content: result.content }],
+        messages: [...s.messages, { role: 'system', content: `Unknown command: /${cmd.command}. Type /help for available commands.` }],
       }));
-      if (result.action === 'clear') {
-        updateCurrent(s => ({ ...s, messages: [] }));
-      } else if (result.action === 'quit') {
-        exit();
-      }
       return;
     }
 

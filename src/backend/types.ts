@@ -30,6 +30,12 @@ export interface CommandInfo {
   name: string;
   description: string;
   argumentHint: string;
+  options?: () => { value: string; desc: string }[];
+}
+
+export interface ProviderCommandResult {
+  message: string;
+  updated?: { model?: string; permissionMode?: string; effort?: string };
 }
 
 export interface ModelOption {
@@ -43,15 +49,12 @@ export interface AgentBackend {
   stop(): void;
   setPermissionHandler(handler: PermissionHandler): void;
   getStatusSegments(): StatusSegment[];
-  getPermissionModes(): string[];
-  setPermissionMode(mode: string): Promise<void>;
   isInitialized(): boolean;
   getModel(): string;
   getPermissionMode(): string;
   getEffort(): string;
-  getModels(): ModelOption[];
+  getProviderCommands(): CommandInfo[];
   getSlashCommands(): CommandInfo[];
-  getEffortLevels(): string[];
-  setEffort(level: string): Promise<void>;
+  executeCommand(name: string, args: string): Promise<ProviderCommandResult | null>;
   onInit(callback: () => void): void;
 }

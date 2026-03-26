@@ -20,22 +20,25 @@ export default function InputArea({ onSubmit, onCancel, disabled, backend }: Inp
   const [input, setInput] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Build dynamic options for commands that depend on backend state (available from cache or after init)
-  const dynamicOptions = useMemo((): Record<string, { value: string; desc: string }[]> => {
-    if (!backend) return {};
-    return {
-      model: backend.getModels().map(m => ({ value: m.value, desc: m.displayName })),
-      mode: backend.getPermissionModes().map(m => ({ value: m, desc: '' })),
-      effort: backend.getEffortLevels().map(l => ({ value: l, desc: '' })),
-    };
-  }, [backend, backend?.isInitialized()]);
+  // Get provider commands and SDK slash commands
+  const providerCmds = useMemo(() => backend?.getProviderCommands() ?? [], [backend, backend?.isInitialized()]);
+  const sdkCmds = useMemo(() => backend?.getSlashCommands() ?? [], [backend, backend?.isInitialized()]);
 
-  // Merge app commands with SDK slash commands
+  // Merge all command sources for autocomplete
   const allCommands = useMemo(() => {
-    const sdkCmds = backend?.getSlashCommands() ?? [];
-    const sdkItems = sdkCmds.map(c => ({ name: c.name, args: c.argumentHint, desc: c.description }));
-    return [...COMMANDS, ...sdkItems];
-  }, [backend, backend?.isInitialized()]);
+    const provider = providerCmds.map(c => ({ name: c.name, args: c.argumentHint, desc: c.description }));
+    const sdk = sdkCmds.map(c => ({ name: c.name, args: c.argumentHint, desc: c.description }));
+    return [...COMMANDS, ...provider, ...sdk];
+  }, [providerCmds, sdkCmds]);
+
+  // Build dynamic options from provider commands that have options()
+  const dynamicOptions = useMemo((): Record<string, { value: string; desc: string }[]> => {
+    const opts: Record<string, { value: string; desc: string }[]> = {};
+    for (const cmd of providerCmds) {
+      if (cmd.options) opts[cmd.name] = cmd.options();
+    }
+    return opts;
+  }, [providerCmds]);
 
   // Determine autocomplete items based on input state
   const items = useMemo((): AutocompleteItem[] => {
