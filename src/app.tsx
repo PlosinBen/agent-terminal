@@ -216,6 +216,17 @@ export default function App() {
       exit();
       return;
     }
+
+    // Escape: abort running agent
+    if (key.escape && current?.loading) {
+      current.backend.stop();
+      updateCurrent(s => ({
+        ...s,
+        loading: false,
+        messages: [...s.messages, { role: 'system', content: 'Aborted.' }],
+      }));
+      return;
+    }
   });
 
   const handlePermissionResponse = useCallback((result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => {

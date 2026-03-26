@@ -24,6 +24,7 @@ export class ClaudeBackend implements AgentBackend {
   private rateLimits = new Map<string, { utilization: number; resetsAt?: number }>();
   private initialized = false;
   private onInitCallback: (() => void) | null = null;
+  private abortController: AbortController | null = null;
 
   constructor(opts?: { model?: string; permissionMode?: string; effort?: string }) {
     if (opts?.model) this.model = opts.model;
@@ -99,6 +100,7 @@ export class ClaudeBackend implements AgentBackend {
       });
     };
 
+    this.abortController = new AbortController();
     return sdkQuery({
       prompt,
       options: {
@@ -107,6 +109,7 @@ export class ClaudeBackend implements AgentBackend {
         model: this.model,
         permissionMode: this.permissionMode as PermissionMode,
         effort: this.effort as 'low' | 'medium' | 'high' | 'max',
+        abortController: this.abortController,
         ...(this.sessionId ? { resume: this.sessionId } : {}),
       },
     });
@@ -293,6 +296,9 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   stop(): void {
-    // TODO: implement abort via SDK when available
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 }
