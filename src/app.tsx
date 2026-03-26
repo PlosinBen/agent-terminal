@@ -187,10 +187,6 @@ export default function App() {
 
   // Global key handler
   useInput((ch, key) => {
-    const mods = [key.ctrl && 'ctrl', key.shift && 'shift', key.meta && 'meta'].filter(Boolean).join('+');
-    const name = ['return','escape','tab','backspace','delete','upArrow','downArrow','leftArrow','rightArrow','pageUp','pageDown'].find(k => key[k as keyof typeof key]);
-    const display = [mods, name || JSON.stringify(ch)].filter(Boolean).join('+');
-    logger.debug(`key: ${display}`);
     // On welcome screen, only allow Ctrl+N and Ctrl+D
     if (showWelcome) {
       if (key.return && savedProjects.length > 0) { openSavedProjects(); return; }
