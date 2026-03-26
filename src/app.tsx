@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useSyncExternalStore } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import InputArea from './components/input-area.js';
 import MessageList, { type Message } from './components/message-list.js';
@@ -55,6 +55,16 @@ function createProjectState(cwd: string): ProjectState {
   };
 }
 
+function useTerminalSize() {
+  const subscribe = useCallback((cb: () => void) => {
+    process.stdout.on('resize', cb);
+    return () => { process.stdout.off('resize', cb); };
+  }, []);
+  const getSnapshot = useCallback(() => `${process.stdout.columns}x${process.stdout.rows}`, []);
+  useSyncExternalStore(subscribe, getSnapshot);
+  return { columns: process.stdout.columns, rows: process.stdout.rows };
+}
+
 function checkClaudeInstalled(): { installed: boolean; version?: string } {
   try {
     const version = execSync('claude --version 2>/dev/null', { encoding: 'utf8' }).trim();
@@ -101,6 +111,7 @@ function WelcomeScreen() {
 
 export default function App() {
   const { exit } = useApp();
+  const { rows } = useTerminalSize();
   const [projectStates, setProjectStates] = useState<ProjectState[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [view, setView] = useState<ViewMode>('agent');
@@ -273,7 +284,7 @@ export default function App() {
   // Welcome screen
   if (showWelcome) {
     return (
-      <Box flexDirection="column" height={process.stdout.rows}>
+      <Box flexDirection="column" height={rows}>
         <WelcomeScreen />
       </Box>
     );
@@ -282,7 +293,7 @@ export default function App() {
   // Adding project (from welcome or Ctrl+N)
   if (addingProject && projectStates.length === 0) {
     return (
-      <Box flexDirection="column" height={process.stdout.rows}>
+      <Box flexDirection="column" height={rows}>
         <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center">
           <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={1}>
             <Text bold color="cyan">Enter project directory path:</Text>
@@ -323,7 +334,7 @@ export default function App() {
   }));
 
   return (
-    <Box flexDirection="column" height={process.stdout.rows}>
+    <Box flexDirection="column" height={rows}>
       {/* Agent View */}
       {view === 'agent' && (
         <Box flexDirection="column" flexGrow={1}>
