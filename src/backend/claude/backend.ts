@@ -1,14 +1,29 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
-import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment } from '../types.js';
+
+const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
+  default: { label: 'Prompt' },
+  acceptEdits: { label: 'AcceptEdits', color: 'yellow' },
+  bypassPermissions: { label: 'BypassPermissions', color: 'red' },
+  plan: { label: 'Plan', color: 'cyan' },
+  dontAsk: { label: 'AutoDeny' },
+};
 
 export class ClaudeBackend implements AgentBackend {
   private permissionHandler: PermissionHandler | null = null;
   private sessionId: string | undefined;
+  private activeQuery: Query | null = null;
   private model = 'opus';
+  private permissionMode: string = 'default';
   private costUsd = 0;
   private inputTokens = 0;
   private outputTokens = 0;
+  private rateLimits = new Map<string, { utilization: number; resetsAt?: number }>();
+
+  constructor(opts?: { permissionMode?: string }) {
+    if (opts?.permissionMode) this.permissionMode = opts.permissionMode;
+  }
 
   setPermissionHandler(handler: PermissionHandler): void {
     this.permissionHandler = handler;
@@ -31,9 +46,11 @@ export class ClaudeBackend implements AgentBackend {
       options: {
         cwd: opts?.cwd ?? process.cwd(),
         canUseTool,
+        permissionMode: this.permissionMode as PermissionMode,
         ...(this.sessionId ? { resume: this.sessionId } : {}),
       },
     });
+    this.activeQuery = generator;
 
     for await (const message of generator) {
       const msg = message as SDKMessage;
@@ -93,8 +110,9 @@ export class ClaudeBackend implements AgentBackend {
         case 'system': {
           const sysMsg = msg as Record<string, unknown>;
           // Capture model name from init message
-          if (sysMsg.subtype === 'init' && sysMsg.model) {
-            this.model = String(sysMsg.model);
+          if (sysMsg.subtype === 'init') {
+            if (sysMsg.model) this.model = String(sysMsg.model);
+            if (sysMsg.permissionMode) this.permissionMode = String(sysMsg.permissionMode);
           }
           if ('subtype' in msg) {
             yield { type: 'system', content: `[${sysMsg.subtype}]` };
@@ -102,7 +120,18 @@ export class ClaudeBackend implements AgentBackend {
           break;
         }
 
-        // Skip other message types for now (stream_event, status, etc.)
+        case 'rate_limit_event': {
+          const rle = msg as Record<string, unknown>;
+          const info = rle.rate_limit_info as Record<string, unknown> | undefined;
+          if (info?.utilization != null && info?.rateLimitType) {
+            this.rateLimits.set(String(info.rateLimitType), {
+              utilization: Number(info.utilization),
+              resetsAt: info.resetsAt != null ? Number(info.resetsAt) : undefined,
+            });
+          }
+          break;
+        }
+
         default:
           break;
       }
@@ -111,11 +140,43 @@ export class ClaudeBackend implements AgentBackend {
 
   getStatusSegments(): StatusSegment[] {
     const tokens = `${(this.inputTokens / 1000).toFixed(0)}k+${(this.outputTokens / 1000).toFixed(0)}k`;
-    return [
+    const segments: StatusSegment[] = [
       { value: this.model },
+      { value: (PERMISSION_MODE_DISPLAY[this.permissionMode]?.label ?? this.permissionMode), color: PERMISSION_MODE_DISPLAY[this.permissionMode]?.color },
       { value: tokens },
       { value: `$${this.costUsd.toFixed(3)}` },
     ];
+    const labelMap: Record<string, string> = {
+      five_hour: '5h',
+      seven_day: '7d',
+      seven_day_opus: '7d-opus',
+      seven_day_sonnet: '7d-sonnet',
+    };
+    for (const [type, info] of this.rateLimits) {
+      const pct = Math.round(info.utilization);
+      const color = pct >= 80 ? 'red' : pct >= 50 ? 'yellow' : undefined;
+      let value = `${pct}%`;
+      if (info.resetsAt) {
+        const diff = info.resetsAt - Date.now();
+        if (diff > 0) {
+          const mins = Math.ceil(diff / 60000);
+          value += mins >= 60 ? ` ↻${(mins / 60).toFixed(1)}h` : ` ↻${mins}m`;
+        }
+      }
+      segments.push({ label: labelMap[type] ?? type, value, color });
+    }
+    return segments;
+  }
+
+  getPermissionModes(): string[] {
+    return ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'];
+  }
+
+  async setPermissionMode(mode: string): Promise<void> {
+    this.permissionMode = mode;
+    if (this.activeQuery) {
+      await this.activeQuery.setPermissionMode(mode as PermissionMode);
+    }
   }
 
   stop(): void {

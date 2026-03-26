@@ -31,4 +31,6 @@ export interface AgentBackend {
   stop(): void;
   setPermissionHandler(handler: PermissionHandler): void;
   getStatusSegments(): StatusSegment[];
+  getPermissionModes(): string[];
+  setPermissionMode(mode: string): Promise<void>;
 }

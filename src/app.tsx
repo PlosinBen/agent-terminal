@@ -39,9 +39,10 @@ function getGitBranch(cwd: string): string {
 }
 
 function createProjectState(cwd: string): ProjectState {
-  const backend = new ClaudeBackend();
+  const project = createProject(cwd);
+  const backend = new ClaudeBackend({ permissionMode: project.permissionMode });
   return {
-    project: createProject(cwd),
+    project,
     backend,
     messages: [{ role: 'system', content: `agent-terminal v0.1.0 — ${cwd}` }],
     loading: false,
