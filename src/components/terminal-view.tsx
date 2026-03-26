@@ -4,7 +4,7 @@ import * as pty from 'node-pty';
 import xtermHeadless from '@xterm/headless';
 const { Terminal } = xtermHeadless;
 import { logger } from '../core/logger.js';
-import type { ProjectInfo } from './project-line.js';
+import { drawProjectLine, type ProjectInfo } from './project-line.js';
 
 interface TerminalViewProps {
   active: boolean;
@@ -21,31 +21,6 @@ const CM_DEFAULT = 0;
 const CM_P16 = 0x01000000;
 const CM_P256 = 0x02000000;
 const CM_RGB = 0x03000000;
-
-const ANSI_STATUS_COLORS: Record<ProjectInfo['status'], string> = {
-  idle: '\x1b[37m',
-  running: '\x1b[33m',
-  attention: '\x1b[31m',
-};
-
-function renderProjectLineAnsi(projects: ProjectInfo[], activeIndex: number): string {
-  let line = ' ';
-  for (let i = 0; i < projects.length; i++) {
-    if (i > 0) line += ' ';
-    const proj = projects[i];
-    const isActive = i === activeIndex;
-    const color = isActive ? '\x1b[1;36m' : '\x1b[90m';
-    line += `${color}[${i + 1}:${proj.name} ${ANSI_STATUS_COLORS[proj.status]}●${color}]\x1b[0m`;
-  }
-  line += '\x1b[2m  Alt+1~9\x1b[0m';
-  return line;
-}
-
-function drawProjectLine(projects: ProjectInfo[], activeIndex: number) {
-  const rows = process.stdout.rows;
-  const content = renderProjectLineAnsi(projects, activeIndex);
-  process.stdout.write(`\x1b7\x1b[${rows};1H\x1b[2K${content}\x1b8`);
-}
 
 /**
  * Reconstruct screen content from xterm-headless buffer as ANSI string.

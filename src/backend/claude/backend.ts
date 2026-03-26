@@ -87,7 +87,7 @@ export class ClaudeBackend implements AgentBackend {
     this.permissionHandler = handler;
   }
 
-  async *query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage> {
+  private createSdkQuery(prompt: string, opts?: { cwd?: string }): Query {
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (!this.permissionHandler) {
         return { behavior: 'allow' as const };
@@ -99,7 +99,7 @@ export class ClaudeBackend implements AgentBackend {
       });
     };
 
-    const generator = sdkQuery({
+    return sdkQuery({
       prompt,
       options: {
         cwd: opts?.cwd ?? process.cwd(),
@@ -110,8 +110,26 @@ export class ClaudeBackend implements AgentBackend {
         ...(this.sessionId ? { resume: this.sessionId } : {}),
       },
     });
+  }
+
+  async *query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage> {
+    const generator = this.createSdkQuery(prompt, opts);
     this.activeQuery = generator;
 
+    const retryWithoutSession = yield* this.processMessages(generator);
+    if (retryWithoutSession) {
+      yield { type: 'system', content: 'Session expired, starting fresh...' };
+      this.sessionId = undefined;
+      const freshGenerator = this.createSdkQuery(prompt, opts);
+      this.activeQuery = freshGenerator;
+      yield* this.processMessages(freshGenerator);
+    }
+  }
+
+  /**
+   * Process SDK messages from a generator. Returns true if session resume failed and a retry is needed.
+   */
+  private async *processMessages(generator: Query): AsyncGenerator<AgentMessage, boolean> {
     for await (const message of generator) {
       const msg = message as SDKMessage;
 
@@ -122,7 +140,6 @@ export class ClaudeBackend implements AgentBackend {
 
       switch (msg.type) {
         case 'assistant': {
-          // Extract text content from BetaMessage
           for (const block of msg.message.content) {
             if (block.type === 'text') {
               yield { type: 'text', content: block.text };
@@ -158,6 +175,10 @@ export class ClaudeBackend implements AgentBackend {
             };
           } else {
             const error = result as SDKResultError;
+            // If session resume failed, signal retry
+            if (this.sessionId && error.errors.some(e => /session|resume/i.test(e))) {
+              return true;
+            }
             yield {
               type: 'system',
               content: `Error: ${error.subtype} — ${error.errors.join(', ')}`,
@@ -169,7 +190,6 @@ export class ClaudeBackend implements AgentBackend {
 
         case 'system': {
           const sysMsg = msg as Record<string, unknown>;
-          // Capture model name from init message
           if (sysMsg.subtype === 'init') {
             if (sysMsg.model) this.model = String(sysMsg.model);
             if (sysMsg.permissionMode) this.permissionMode = String(sysMsg.permissionMode);
@@ -212,6 +232,7 @@ export class ClaudeBackend implements AgentBackend {
           break;
       }
     }
+    return false;
   }
 
   getStatusSegments(): StatusSegment[] {

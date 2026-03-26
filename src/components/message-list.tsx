@@ -59,7 +59,7 @@ function CollapsibleMessage({ msg, index }: { msg: Message; index: number }) {
 
 export default function MessageList({ messages }: MessageListProps) {
   return (
-    <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1} justifyContent="flex-end">
       {messages.map((msg, i) => (
         <CollapsibleMessage key={i} msg={msg} index={i} />
       ))}
