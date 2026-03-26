@@ -55,47 +55,46 @@ function createProjectState(cwd: string): ProjectState {
   };
 }
 
-const WELCOME_OPTIONS = [
-  { label: 'Open current directory', desc: process.cwd() },
-  { label: 'Enter a path', desc: 'Specify a project directory' },
-];
+function checkClaudeInstalled(): { installed: boolean; version?: string } {
+  try {
+    const version = execSync('claude --version 2>/dev/null', { encoding: 'utf8' }).trim();
+    return { installed: true, version };
+  } catch {
+    return { installed: false };
+  }
+}
 
-function WelcomeScreen({ onSelect }: { onSelect: (choice: 'cwd' | 'input') => void }) {
-  const [selected, setSelected] = useState(0);
-  const { exit } = useApp();
-
-  useInput((ch, key) => {
-    if (key.upArrow) setSelected(i => Math.max(0, i - 1));
-    if (key.downArrow) setSelected(i => Math.min(WELCOME_OPTIONS.length - 1, i + 1));
-    if (key.return) {
-      onSelect(selected === 0 ? 'cwd' : 'input');
-    }
-    if (key.ctrl && ch === 'd') exit();
-  });
+function WelcomeScreen() {
+  const [claudeStatus] = useState(() => checkClaudeInstalled());
 
   return (
-    <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center">
-      <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={1}>
-        <Text bold color="cyan">
-          {'  agent-terminal v0.1.0'}
-        </Text>
-        <Text>{''}</Text>
-        <Text dimColor>Select a project to get started:</Text>
-        <Text>{''}</Text>
-        {WELCOME_OPTIONS.map((opt, i) => (
-          <Box key={opt.label}>
-            <Text color={i === selected ? 'cyan' : 'gray'}>
-              {i === selected ? '  › ' : '    '}
-            </Text>
-            <Text color={i === selected ? 'cyan' : 'white'} bold={i === selected}>
-              {opt.label}
-            </Text>
-            <Text color="gray"> — {opt.desc}</Text>
-          </Box>
-        ))}
-        <Text>{''}</Text>
-        <Text dimColor>  Ctrl+D to quit</Text>
-      </Box>
+    <Box flexDirection="column" flexGrow={1} justifyContent="center" paddingX={2}>
+      <Text bold color="cyan">{
+` ▄▀█ █▀▀ █▀▀ █▄ █ ▀█▀   ▀█▀ █▀▀ █▀█ █▀▄▀█ █ █▄ █ ▄▀█ █
+ █▀█ █▄█ ██▄ █ ▀█  █     █  ██▄ █▀▄ █ ▀ █ █ █ ▀█ █▀█ █▄▄`}
+      </Text>
+      <Text dimColor>v0.1.0</Text>
+      <Text>{''}</Text>
+
+      {claudeStatus.installed ? (
+        <>
+          <Text color="green">Claude Code: {claudeStatus.version}</Text>
+          <Text>{''}</Text>
+          <Text dimColor>Press <Text color="cyan">Ctrl+N</Text> to add a project and get started</Text>
+        </>
+      ) : (
+        <>
+          <Text color="red">Claude Code: not found</Text>
+          <Text>{''}</Text>
+          <Text>agent-terminal requires Claude Code CLI to be installed.</Text>
+          <Text>{''}</Text>
+          <Text dimColor>Install: npm install -g @anthropic-ai/claude-code</Text>
+          <Text dimColor>Docs:    https://docs.anthropic.com/en/docs/claude-code</Text>
+        </>
+      )}
+
+      <Text>{''}</Text>
+      <Text dimColor>Ctrl+D to quit</Text>
     </Box>
   );
 }
@@ -107,10 +106,8 @@ export default function App() {
   const [view, setView] = useState<ViewMode>('agent');
   const [addingProject, setAddingProject] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
-  const [welcomePathInput, setWelcomePathInput] = useState(false);
-
   const current = projectStates[activeIndex];
-  const showWelcome = projectStates.length === 0 && !welcomePathInput;
+  const showWelcome = projectStates.length === 0 && !addingProject;
 
   // Helper to update current project state
   const updateCurrent = useCallback((updater: (state: ProjectState) => ProjectState) => {
@@ -125,7 +122,6 @@ export default function App() {
     });
     setActiveIndex(prev => projectStates.length);
     setAddingProject(false);
-    setWelcomePathInput(false);
   }, [projectStates.length]);
 
   // Set up permission handler for each project
@@ -146,7 +142,12 @@ export default function App() {
 
   // Global key handler
   useInput((ch, key) => {
-    if (showWelcome || welcomePathInput) return;
+    // On welcome screen, only allow Ctrl+N and Ctrl+D
+    if (showWelcome) {
+      if (key.ctrl && ch === 'n') { setAddingProject(true); return; }
+      if (key.ctrl && ch === 'd') { exit(); return; }
+      return;
+    }
 
     // View switching: Alt+Left/Right
     if (key.meta && key.leftArrow) { setView('agent'); return; }
@@ -273,19 +274,13 @@ export default function App() {
   if (showWelcome) {
     return (
       <Box flexDirection="column" height={process.stdout.rows}>
-        <WelcomeScreen onSelect={(choice) => {
-          if (choice === 'cwd') {
-            addProject(process.cwd());
-          } else {
-            setWelcomePathInput(true);
-          }
-        }} />
+        <WelcomeScreen />
       </Box>
     );
   }
 
-  // Path input for welcome
-  if (welcomePathInput && projectStates.length === 0) {
+  // Adding project (from welcome or Ctrl+N)
+  if (addingProject && projectStates.length === 0) {
     return (
       <Box flexDirection="column" height={process.stdout.rows}>
         <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center">
