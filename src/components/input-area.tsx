@@ -4,6 +4,7 @@ import { COMMANDS, MODELS } from '../core/commands.js';
 
 interface InputAreaProps {
   onSubmit: (text: string) => void;
+  onCancel?: () => void;
   disabled?: boolean;
 }
 
@@ -13,7 +14,7 @@ interface AutocompleteItem {
   value: string; // what gets filled into input
 }
 
-export default function InputArea({ onSubmit, disabled }: InputAreaProps) {
+export default function InputArea({ onSubmit, onCancel, disabled }: InputAreaProps) {
   const [input, setInput] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -111,6 +112,10 @@ export default function InputArea({ onSubmit, disabled }: InputAreaProps) {
       if (showAutocomplete) {
         setInput('');
         setSelectedIndex(0);
+        return;
+      }
+      if (onCancel) {
+        onCancel();
         return;
       }
     }

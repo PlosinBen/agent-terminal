@@ -9,7 +9,7 @@ import ProjectLine, { type ProjectInfo } from './components/project-line.js';
 import NotificationBar, { type Notification } from './components/notification-bar.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
-import { createProject, type Project } from './core/workspace.js';
+import { createProject, saveProject, listProjects, type ProjectConfig } from './core/workspace.js';
 import { parseCommand, executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
 
@@ -21,7 +21,7 @@ interface PendingPermission {
 }
 
 interface ProjectState {
-  project: Project;
+  project: ProjectConfig;
   backend: AgentBackend;
   messages: Message[];
   loading: boolean;
@@ -74,8 +74,9 @@ function checkClaudeInstalled(): { installed: boolean; version?: string } {
   }
 }
 
-function WelcomeScreen() {
+function WelcomeScreen({ savedProjects }: { savedProjects: ProjectConfig[] }) {
   const [claudeStatus] = useState(() => checkClaudeInstalled());
+  const hasSaved = savedProjects.length > 0;
 
   return (
     <Box flexDirection="column" flexGrow={1} justifyContent="center" paddingX={2}>
@@ -103,9 +104,22 @@ function WelcomeScreen() {
         )}
       </Box>
 
+      {/* Saved projects */}
+      {hasSaved && (
+        <Box flexDirection="column" marginBottom={1}>
+          <Text dimColor>Projects:</Text>
+          {savedProjects.map(p => (
+            <Text key={p.id} dimColor>  {p.name} <Text color="gray">— {p.cwd}</Text></Text>
+          ))}
+        </Box>
+      )}
+
       {/* Keybindings */}
       <Box flexDirection="column">
-        <Text dimColor>Press <Text color="cyan">Ctrl+N</Text> to add a project and get started</Text>
+        {hasSaved && (
+          <Text dimColor>Press <Text color="cyan">Enter</Text> to open all projects</Text>
+        )}
+        <Text dimColor>Press <Text color="cyan">Ctrl+N</Text> to add a new project</Text>
         <Text dimColor>Press <Text color="cyan">Esc</Text> to quit</Text>
       </Box>
     </Box>
@@ -120,6 +134,7 @@ export default function App() {
   const [view, setView] = useState<ViewMode>('agent');
   const [addingProject, setAddingProject] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
+  const [savedProjects] = useState(() => listProjects());
   const current = projectStates[activeIndex];
   const showWelcome = projectStates.length === 0 && !addingProject;
 
@@ -137,6 +152,13 @@ export default function App() {
     setActiveIndex(prev => projectStates.length);
     setAddingProject(false);
   }, [projectStates.length]);
+
+  const openSavedProjects = useCallback(() => {
+    if (savedProjects.length === 0) return;
+    const states = savedProjects.map(p => createProjectState(p.cwd));
+    setProjectStates(states);
+    setActiveIndex(0);
+  }, [savedProjects]);
 
   // Set up permission handler for each project
   useEffect(() => {
@@ -158,6 +180,7 @@ export default function App() {
   useInput((ch, key) => {
     // On welcome screen, only allow Ctrl+N and Ctrl+D
     if (showWelcome) {
+      if (key.return && savedProjects.length > 0) { openSavedProjects(); return; }
       if (key.ctrl && ch === 'n') { setAddingProject(true); return; }
       if (key.escape) { exit(); return; }
       return;
@@ -238,6 +261,17 @@ export default function App() {
       for await (const msg of gen) {
         if (msg.type === 'result') {
           assistantText = msg.content;
+          // Persist sessionId to project config
+          if (msg.sessionId) {
+            updateCurrent(s => {
+              if (s.project.sessionId !== msg.sessionId) {
+                const updated = { ...s.project, sessionId: msg.sessionId };
+                saveProject(updated);
+                return { ...s, project: updated };
+              }
+              return s;
+            });
+          }
           updateCurrent(s => ({
             ...s,
             costUsd: s.costUsd + (msg.costUsd ?? 0),
@@ -288,7 +322,7 @@ export default function App() {
   if (showWelcome) {
     return (
       <Box flexDirection="column" height={rows}>
-        <WelcomeScreen />
+        <WelcomeScreen savedProjects={savedProjects} />
       </Box>
     );
   }
@@ -301,7 +335,7 @@ export default function App() {
           <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={1}>
             <Text bold color="cyan">Enter project directory path:</Text>
             <Text>{''}</Text>
-            <InputArea onSubmit={addProject} />
+            <InputArea onSubmit={addProject} onCancel={() => setAddingProject(false)} />
             <Text>{''}</Text>
             <Text dimColor>  Press Escape to go back</Text>
           </Box>
@@ -344,7 +378,7 @@ export default function App() {
           {addingProject ? (
             <Box flexDirection="column" paddingX={1}>
               <Text bold>New project — enter directory path:</Text>
-              <InputArea onSubmit={addProject} />
+              <InputArea onSubmit={addProject} onCancel={() => setAddingProject(false)} />
             </Box>
           ) : (
             <>
