@@ -1,16 +1,30 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { AgentService } from '../service/agent-service';
+import type { ServerConfig } from '../service/types';
+import { ServiceEvent } from '../service/types';
+import type { ConnectionChangedPayload } from '../service/types';
+import { useKeyboardScope } from '../hooks/useKeyboardScope';
+import { useAppStore } from '../stores/app-store';
+import { PRINTABLE } from '../services/keyboard';
 import './FolderPicker.css';
+
+type ServerStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
 
 interface Props {
   service: AgentService;
-  serverHost: string;
+  servers: ServerConfig[];
+  initialServerHost: string;
   initialPath: string;
-  onSelect: (path: string) => void;
+  onSelect: (path: string, serverHost: string) => void;
   onCancel: () => void;
+  onAddServer: (name: string, host: string) => void;
+  onRemoveServer: (host: string) => void;
 }
 
-export function FolderPicker({ service, serverHost, initialPath, onSelect, onCancel }: Props) {
+export function FolderPicker({
+  service, servers, initialServerHost, initialPath,
+  onSelect, onCancel, onAddServer, onRemoveServer,
+}: Props) {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [entries, setEntries] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -18,9 +32,26 @@ export function FolderPicker({ service, serverHost, initialPath, onSelect, onCan
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [activeHost, setActiveHost] = useState(initialServerHost);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addHost, setAddHost] = useState('');
+  const [serverStatuses, setServerStatuses] = useState<Record<string, ServerStatus>>(() => {
+    const init: Record<string, ServerStatus> = {};
+    for (const s of servers) {
+      init[s.host] = service.isConnected(s.host) ? 'connected' : 'disconnected';
+    }
+    return init;
+  });
+
   const listRef = useRef<HTMLDivElement>(null);
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
+  const filteredRef = useRef<string[]>([]);
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
+  const currentPathRef = useRef(currentPath);
+  currentPathRef.current = currentPath;
+  const activeHostRef = useRef(activeHost);
+  activeHostRef.current = activeHost;
 
   const requestFolder = useCallback((path: string) => {
     setLoading(true);
@@ -28,37 +59,40 @@ export function FolderPicker({ service, serverHost, initialPath, onSelect, onCan
     setFilter('');
     setSelectedIndex(0);
 
-    service.listFolders({ host: serverHost, name: 'local' }, path).then((result) => {
+    service.listFolders({ host: activeHostRef.current, name: '' }, path).then((result) => {
       setCurrentPath(result.path);
       setEntries(result.entries);
       setError(result.error ?? null);
       setLoading(false);
     });
-  }, [service, serverHost]);
+  }, [service]);
+
+  // Track server connection statuses
+  useEffect(() => {
+    return service.on(ServiceEvent.ConnectionChanged, (payload) => {
+      const ev = payload as ConnectionChangedPayload;
+      setServerStatuses(prev => ({
+        ...prev,
+        [ev.host]: ev.status === 'reconnecting' ? 'connecting' : ev.status,
+      }));
+    });
+  }, [service]);
 
   // Initial load
   useEffect(() => {
     requestFolder(initialPath);
   }, [initialPath, requestFolder]);
 
-  // Filtered entries — need a ref for the keydown handler
+  // Filtered entries
   const filtered = filter
     ? entries.filter(name => name.toLowerCase().includes(filter.toLowerCase()))
     : entries;
-  const filteredRef = useRef(filtered);
   filteredRef.current = filtered;
-
-  const selectedIndexRef = useRef(selectedIndex);
-  selectedIndexRef.current = selectedIndex;
-
-  const currentPathRef = useRef(currentPath);
-  currentPathRef.current = currentPath;
 
   // Scroll selected item into view
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    // +1 because first item is ".."
     const item = list.children[selectedIndex + 1] as HTMLElement | undefined;
     item?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
@@ -70,124 +104,194 @@ export function FolderPicker({ service, serverHost, initialPath, onSelect, onCan
     }
   }, [requestFolder]);
 
-  // Global keydown — captures all keyboard input regardless of focus
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Ignore if modifier keys are held (except shift for typing)
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-      switch (e.key) {
-        case 'ArrowUp':
-          e.preventDefault();
-          setSelectedIndex(i => Math.max(0, i - 1));
-          break;
-
-        case 'ArrowDown':
-          e.preventDefault();
-          setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1));
-          break;
-
-        case 'ArrowRight': {
-          e.preventDefault();
-          const entry = filteredRef.current[selectedIndexRef.current];
-          if (entry) {
-            requestFolder(currentPathRef.current + '/' + entry);
-          }
-          break;
-        }
-
-        case 'ArrowLeft':
-          e.preventDefault();
-          goUp();
-          break;
-
-        case 'Enter':
-          e.preventDefault();
-          onSelect(currentPathRef.current);
-          break;
-
-        case 'Escape':
-          e.preventDefault();
-          onCancel();
-          break;
-
-        case 'Backspace':
-          e.preventDefault();
-          setFilter(f => f.slice(0, -1));
-          break;
-
-        default:
-          // Single printable character → append to filter
-          if (e.key.length === 1) {
-            e.preventDefault();
-            setFilter(f => f + e.key);
-          }
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [requestFolder, goUp, onSelect, onCancel]);
-
   // Reset selection when filter changes
   useEffect(() => {
     setSelectedIndex(0);
   }, [filter]);
+
+  // ── Scope management: switch between folder-picker and folder-picker-form ──
+  useEffect(() => {
+    const { pushScope, popScope } = useAppStore.getState();
+    if (showAddForm || loading) {
+      pushScope('folder-picker-form');
+    }
+    return () => {
+      // Only pop if we pushed (form closed or loading ended)
+      if (showAddForm || loading) {
+        popScope();
+      }
+    };
+  }, [showAddForm, loading]);
+
+  // Folder-picker scope keybindings (active when not in form/loading)
+  useKeyboardScope('folder-picker', useMemo(() => ({
+    'ArrowUp': () => setSelectedIndex(i => Math.max(0, i - 1)),
+    'ArrowDown': () => setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1)),
+    'ArrowRight': () => {
+      const entry = filteredRef.current[selectedIndexRef.current];
+      if (entry) requestFolder(currentPathRef.current + '/' + entry);
+    },
+    'ArrowLeft': () => goUp(),
+    'Enter': () => onSelect(currentPathRef.current, activeHostRef.current),
+    'Escape': () => onCancel(),
+    'Backspace': () => setFilter(f => f.slice(0, -1)),
+    [PRINTABLE]: (e: KeyboardEvent) => setFilter(f => f + e.key),
+  }), [requestFolder, goUp, onSelect, onCancel]));
+
+  const switchServer = useCallback((host: string) => {
+    if (host === activeHostRef.current) return;
+
+    setActiveHost(host);
+    activeHostRef.current = host;
+    setLoading(true);
+    setEntries([]);
+    setError(null);
+
+    if (!service.isConnected(host)) {
+      setServerStatuses(prev => ({ ...prev, [host]: 'connecting' }));
+    }
+    service.acquireConnection(host);
+    service.getServerInfo(host).then((info) => {
+      requestFolder(info.homePath);
+    });
+  }, [service, requestFolder]);
+
+  const handleAddServer = useCallback(() => {
+    const name = addName.trim();
+    const host = addHost.trim();
+    if (!name || !host) return;
+
+    onAddServer(name, host);
+    setShowAddForm(false);
+    setAddName('');
+    setAddHost('');
+    switchServer(host);
+  }, [addName, addHost, onAddServer, switchServer]);
 
   return (
     <div className="folder-picker-overlay" onMouseDown={(e) => {
       if (e.target === e.currentTarget) onCancel();
     }}>
       <div className="folder-picker">
-        <div className="folder-picker-header">
-          <div className="folder-picker-title">Open Project</div>
-          <div className="folder-picker-path">{currentPath}</div>
-        </div>
-
-        <div className="folder-picker-filter">
-          {filter || <span className="folder-picker-filter-placeholder">Type to filter...</span>}
-        </div>
-
-        {error && <div className="folder-picker-error">{error}</div>}
-
-        <div className="folder-picker-list" ref={listRef}>
-          {/* Go up item */}
-          <div
-            className="folder-picker-item"
-            onClick={goUp}
-          >
-            <span className="folder-picker-item-icon">{'\u2190'}</span>
-            <span className="folder-picker-item-name">..</span>
+        {/* ── Left: Server List ── */}
+        <div className="fp-servers">
+          <div className="fp-servers-header">Servers</div>
+          <div className="fp-servers-list">
+            {servers.map(s => {
+              const status = serverStatuses[s.host] ?? 'disconnected';
+              return (
+                <div
+                  key={s.host}
+                  className={`fp-server-item${s.host === activeHost ? ' active' : ''}`}
+                  onClick={() => switchServer(s.host)}
+                >
+                  <div className="fp-server-name">
+                    <span className={`fp-server-status ${status}`} title={status} />
+                    {s.name}
+                  </div>
+                  <div className="fp-server-host">{s.host}</div>
+                  {servers.length > 1 && (
+                    <button
+                      className="fp-server-remove"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveServer(s.host);
+                        if (s.host === activeHost) {
+                          const other = servers.find(o => o.host !== s.host);
+                          if (other) switchServer(other.host);
+                        }
+                      }}
+                      title="Remove server"
+                    >{'\u00D7'}</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {loading ? (
-            <div className="folder-picker-empty">Loading...</div>
-          ) : filtered.length === 0 ? (
-            <div className="folder-picker-empty">
-              {filter ? 'No matches' : 'No subdirectories'}
+          {showAddForm ? (
+            <div className="fp-add-form">
+              <input
+                className="fp-add-input"
+                placeholder="Name"
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleAddServer();
+                  if (e.key === 'Escape') { setShowAddForm(false); e.stopPropagation(); }
+                }}
+              />
+              <input
+                className="fp-add-input"
+                placeholder="host:port"
+                value={addHost}
+                onChange={e => setAddHost(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleAddServer();
+                  if (e.key === 'Escape') { setShowAddForm(false); e.stopPropagation(); }
+                }}
+              />
+              <div className="fp-add-actions">
+                <button className="fp-add-ok" onClick={handleAddServer}>Connect</button>
+                <button className="fp-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
+              </div>
             </div>
           ) : (
-            filtered.map((name, i) => (
-              <div
-                key={name}
-                className={`folder-picker-item${i === selectedIndex ? ' selected' : ''}`}
-                onClick={() => requestFolder(currentPath + '/' + name)}
-                onMouseEnter={() => setSelectedIndex(i)}
-              >
-                <span className="folder-picker-item-icon">{'\uD83D\uDCC1'}</span>
-                <span className="folder-picker-item-name">{name}</span>
-              </div>
-            ))
+            <button
+              className="fp-add-btn"
+              onClick={() => setShowAddForm(true)}
+            >+ Add Server</button>
           )}
         </div>
 
-        <div className="folder-picker-footer">
-          <span className="folder-picker-hint"><kbd>{'\u2191\u2193'}</kbd> select</span>
-          <span className="folder-picker-hint"><kbd>{'\u2192'}</kbd> enter</span>
-          <span className="folder-picker-hint"><kbd>{'\u2190'}</kbd> up</span>
-          <span className="folder-picker-hint"><kbd>Enter</kbd> confirm</span>
-          <span className="folder-picker-hint"><kbd>Esc</kbd> cancel</span>
+        {/* ── Right: Folder Browser ── */}
+        <div className="fp-browser">
+          {loading && <div className="fp-browser-loading-overlay">Loading...</div>}
+
+          <div className="fp-browser-header">
+            <div className="fp-browser-title">Open Project</div>
+            <div className="fp-browser-path">{currentPath}</div>
+          </div>
+
+          <div className="fp-browser-filter">
+            {filter || <span className="fp-browser-filter-placeholder">Type to filter...</span>}
+          </div>
+
+          {error && <div className="fp-browser-error">{error}</div>}
+
+          <div className="fp-browser-list" ref={listRef}>
+            <div className="folder-picker-item" onClick={goUp}>
+              <span className="folder-picker-item-icon">{'\u2190'}</span>
+              <span className="folder-picker-item-name">..</span>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="fp-browser-empty">
+                {filter ? 'No matches' : 'No subdirectories'}
+              </div>
+            ) : (
+              filtered.map((name, i) => (
+                <div
+                  key={name}
+                  className={`folder-picker-item${i === selectedIndex ? ' selected' : ''}`}
+                  onClick={() => requestFolder(currentPath + '/' + name)}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                >
+                  <span className="folder-picker-item-icon">{'\uD83D\uDCC1'}</span>
+                  <span className="folder-picker-item-name">{name}</span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="fp-browser-footer">
+            <span className="fp-hint"><kbd>{'\u2191\u2193'}</kbd> select</span>
+            <span className="fp-hint"><kbd>{'\u2192'}</kbd> enter</span>
+            <span className="fp-hint"><kbd>{'\u2190'}</kbd> up</span>
+            <span className="fp-hint"><kbd>Enter</kbd> confirm</span>
+            <span className="fp-hint"><kbd>Esc</kbd> cancel</span>
+          </div>
         </div>
       </div>
     </div>

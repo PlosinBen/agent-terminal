@@ -9,8 +9,12 @@ import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { Terminal } from './components/Terminal';
-import { loadKeybindings, matchesBinding, formatBinding } from './keybindings';
+import { loadKeybindings, formatBinding } from './keybindings';
+import { keyboard } from './services/keyboard';
+import { useKeyboardScope } from './hooks/useKeyboardScope';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from './projects-storage';
+import { loadServers, saveServers } from './service/server-storage';
+import type { ServerConfig } from './service/types';
 import type { ConfigUpdate } from './hooks/useProjects';
 
 declare global {
@@ -67,6 +71,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'agent' | 'terminal'>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [homePath, setHomePath] = useState('/');
+  const [servers, setServers] = useState<ServerConfig[]>(() => loadServers());
 
   const keybindings = useMemo(() => loadKeybindings(), []);
 
@@ -77,7 +82,13 @@ export function App() {
   const serverHostRef = useRef(serverHost);
   serverHostRef.current = serverHost;
 
-  // Acquire WS connection on mount + fetch home path
+  // Start keyboard service once
+  useEffect(() => {
+    keyboard.start();
+    return () => keyboard.stop();
+  }, []);
+
+  // Acquire WS connection on mount + fetch home path via server:info
   useEffect(() => {
     let host = DEFAULT_SERVER_HOST;
     const init = async () => {
@@ -90,14 +101,28 @@ export function App() {
       setServerHost(host);
       service.acquireConnection(host);
 
+      // Ensure local server is in the servers list
+      setServers(prev => {
+        if (prev.some(s => s.host === host)) return prev;
+        const next = [{ host, name: 'localhost' }, ...prev];
+        saveServers(next);
+        return next;
+      });
+
       // Check if already connected (in case onopen fired before listener was ready)
       if (service.isConnected(host)) {
         setConnected(true);
       }
 
-      if (window.electronAPI) {
-        const home = await window.electronAPI.getHomePath();
-        setHomePath(home);
+      // Fetch home path from server (works for both Electron and standalone)
+      try {
+        const info = await service.getServerInfo(host);
+        setHomePath(info.homePath);
+      } catch {
+        if (window.electronAPI) {
+          const home = await window.electronAPI.getHomePath();
+          setHomePath(home);
+        }
       }
     };
     init();
@@ -119,15 +144,15 @@ export function App() {
   const connectProject = useCallback(async (project: ProjectInfo) => {
     if (project.connectionStatus === 'connected' || project.connectionStatus === 'connecting') return;
 
-    // Ensure project uses the current server host
-    const projectWithHost = { ...project, serverHost: serverHostRef.current };
+    // Ensure we have a connection to the project's server
+    service.acquireConnection(project.serverHost);
 
     // Mark as connecting
     setProjects(prev => prev.map(p =>
-      p.id === project.id ? { ...p, serverHost: serverHostRef.current, connectionStatus: 'connecting' as const } : p
+      p.id === project.id ? { ...p, connectionStatus: 'connecting' as const } : p
     ));
 
-    await service.connectProject(projectWithHost);
+    await service.connectProject(project);
 
     setProjects(prev => prev.map(p =>
       p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
@@ -135,13 +160,33 @@ export function App() {
     initProject(project.id);
   }, [service, initProject]);
 
-  // Track connection status — use ref for host comparison to avoid race conditions
+  const addServer = useCallback((name: string, host: string) => {
+    setServers(prev => {
+      if (prev.some(s => s.host === host)) return prev;
+      const next = [...prev, { host, name }];
+      saveServers(next);
+      return next;
+    });
+    service.acquireConnection(host);
+  }, [service]);
+
+  const removeServer = useCallback((host: string) => {
+    setServers(prev => {
+      const next = prev.filter(s => s.host !== host);
+      saveServers(next);
+      return next;
+    });
+  }, []);
+
+  // Track connection status for all servers
   useEffect(() => {
     return service.on(ServiceEvent.ConnectionChanged, (payload) => {
       const ev = payload as ConnectionChangedPayload;
-      if (ev.host !== serverHostRef.current) return;
 
-      setConnected(ev.status === 'connected');
+      // Track local server connected state for the empty-state UI
+      if (ev.host === serverHostRef.current) {
+        setConnected(ev.status === 'connected');
+      }
 
       if (ev.status === 'reconnecting') {
         // Mark all projects on this server as reconnecting
@@ -156,7 +201,6 @@ export function App() {
           p => p.serverHost === ev.host && p.connectionStatus === 'reconnecting'
         );
         for (const project of toReconnect) {
-          // Reset to disconnected so connectProject will proceed
           setProjects(prev => prev.map(p =>
             p.id === project.id ? { ...p, connectionStatus: 'disconnected' as const } : p
           ));
@@ -167,9 +211,9 @@ export function App() {
   }, [service, connectProject]);
 
   // Create a new project from FolderPicker and immediately connect
-  const createProjectWithCwd = useCallback((cwd: string) => {
-    // Check if project with same cwd already exists
-    const existing = projectsRef.current.find(p => p.cwd === cwd);
+  const createProjectWithCwd = useCallback((cwd: string, targetServerHost: string) => {
+    // Check if project with same cwd + server already exists
+    const existing = projectsRef.current.find(p => p.cwd === cwd && p.serverHost === targetServerHost);
     if (existing) {
       setActiveProjectId(existing.id);
       if (existing.connectionStatus === 'disconnected') connectProject(existing);
@@ -178,7 +222,7 @@ export function App() {
 
     const id = generateProjectId();
     const name = cwd.split('/').pop() ?? 'project';
-    const p: ProjectInfo = { id, name, cwd, serverHost, agentStatus: 'idle', connectionStatus: 'disconnected' };
+    const p: ProjectInfo = { id, name, cwd, serverHost: targetServerHost, agentStatus: 'idle', connectionStatus: 'disconnected' };
 
     setProjects(prev => {
       const next = [...prev, p];
@@ -190,7 +234,7 @@ export function App() {
     // Connect immediately since user explicitly created this project
     // Use setTimeout to let state update first
     setTimeout(() => connectProject(p), 0);
-  }, [connectProject, persistProjects, serverHost]);
+  }, [connectProject, persistProjects]);
 
   // Open folder picker
   const openFolderPicker = useCallback(() => {
@@ -233,56 +277,28 @@ export function App() {
     window.electronAPI?.revealInFinder(cwd);
   }, []);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (matchesBinding(e, keybindings.toggleSidebar)) {
-        e.preventDefault();
-        setSidebarVisible(v => !v);
-        return;
-      }
-
-      if (matchesBinding(e, keybindings.newProject)) {
-        e.preventDefault();
-        openFolderPicker();
-        return;
-      }
-
-      if (matchesBinding(e, keybindings.nextProject)) {
-        e.preventDefault();
-        const list = projectsRef.current;
-        if (list.length < 2) return;
-        const idx = list.findIndex(p => p.id === activeRef.current);
-        setActiveProjectId(list[(idx + 1) % list.length].id);
-        return;
-      }
-
-      if (matchesBinding(e, keybindings.prevProject)) {
-        e.preventDefault();
-        const list = projectsRef.current;
-        if (list.length < 2) return;
-        const idx = list.findIndex(p => p.id === activeRef.current);
-        setActiveProjectId(list[(idx - 1 + list.length) % list.length].id);
-        return;
-      }
-
-      if (matchesBinding(e, keybindings.toggleTerminal)) {
-        e.preventDefault();
-        setActiveTab(t => t === 'agent' ? 'terminal' : 'agent');
-        return;
-      }
-
-      if (matchesBinding(e, keybindings.closeProject)) {
-        e.preventDefault();
-        const pid = activeRef.current;
-        if (pid) closeProject(pid);
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [keybindings, openFolderPicker, closeProject]);
+  // App-scope keyboard shortcuts (only active when no modal is open)
+  useKeyboardScope('app', useMemo(() => ({
+    [keybindings.toggleSidebar]: () => setSidebarVisible(v => !v),
+    [keybindings.newProject]: () => openFolderPicker(),
+    [keybindings.nextProject]: () => {
+      const list = projectsRef.current;
+      if (list.length < 2) return;
+      const idx = list.findIndex(p => p.id === activeRef.current);
+      setActiveProjectId(list[(idx + 1) % list.length].id);
+    },
+    [keybindings.prevProject]: () => {
+      const list = projectsRef.current;
+      if (list.length < 2) return;
+      const idx = list.findIndex(p => p.id === activeRef.current);
+      setActiveProjectId(list[(idx - 1 + list.length) % list.length].id);
+    },
+    [keybindings.toggleTerminal]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
+    [keybindings.closeProject]: () => {
+      const pid = activeRef.current;
+      if (pid) closeProject(pid);
+    },
+  }), [keybindings, openFolderPicker, closeProject]), { autoScope: false });
 
   const activeState = getState(activeProjectId);
 
@@ -403,13 +419,16 @@ export function App() {
       {showFolderPicker && (
         <FolderPicker
           service={service}
-          serverHost={serverHost}
+          servers={servers}
+          initialServerHost={serverHost}
           initialPath={homePath}
-          onSelect={(folderPath) => {
+          onSelect={(folderPath, selectedHost) => {
             setShowFolderPicker(false);
-            createProjectWithCwd(folderPath);
+            createProjectWithCwd(folderPath, selectedHost);
           }}
           onCancel={() => setShowFolderPicker(false)}
+          onAddServer={addServer}
+          onRemoveServer={removeServer}
         />
       )}
     </div>

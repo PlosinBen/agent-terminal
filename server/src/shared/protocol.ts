@@ -71,6 +71,11 @@ export interface FolderListMsg {
   requestId: string;
 }
 
+export interface ServerInfoMsg {
+  type: 'server:info';
+  requestId: string;
+}
+
 export type UpstreamMessage =
   | AgentQueryMsg
   | AgentStopMsg
@@ -81,7 +86,8 @@ export type UpstreamMessage =
   | PtyResizeMsg
   | ProjectCreateMsg
   | ProjectListMsg
-  | FolderListMsg;
+  | FolderListMsg
+  | ServerInfoMsg;
 
 // ── Main → Renderer ──
 
@@ -174,6 +180,13 @@ export interface FolderListResultMsg {
   error?: string;
 }
 
+export interface ServerInfoResultMsg {
+  type: 'server:info_result';
+  requestId: string;
+  homePath: string;
+  hostname: string;
+}
+
 export interface CommandResultMsg {
   type: 'command:result';
   projectId: string;
@@ -196,4 +209,5 @@ export type DownstreamMessage =
   | ProjectCreatedMsg
   | ProjectListResultMsg
   | FolderListResultMsg
+  | ServerInfoResultMsg
   | CommandResultMsg;

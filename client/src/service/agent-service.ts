@@ -1,4 +1,4 @@
-import type { UpstreamMessage, DownstreamMessage, FolderListResultMsg, ProjectCreatedMsg, CommandResultMsg } from '@shared/protocol';
+import type { UpstreamMessage, DownstreamMessage, FolderListResultMsg, ProjectCreatedMsg, CommandResultMsg, ServerInfoResultMsg } from '@shared/protocol';
 import type { ProjectInfo } from '../components/Sidebar';
 import type { ServerConfig, ServiceEventHandler, ConnectionChangedPayload } from './types';
 import { ServiceEvent } from './types';
@@ -141,6 +141,26 @@ export class AgentService {
       projectId: project.id,
       requestId,
       result,
+    });
+  }
+
+  // ── Server Info ──
+
+  /** Get server info (home path, hostname). */
+  getServerInfo(host: string): Promise<ServerInfoResultMsg> {
+    const requestId = nextRequestId();
+    return new Promise((resolve) => {
+      const unsub = this.cm.onMessage(host, (msg) => {
+        if (msg.type === 'server:info_result' && msg.requestId === requestId) {
+          unsub();
+          resolve(msg);
+        }
+      });
+
+      this.cm.send(host, {
+        type: 'server:info',
+        requestId,
+      });
     });
   }
 

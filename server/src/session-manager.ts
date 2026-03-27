@@ -48,6 +48,9 @@ export class SessionManager {
       case 'folder:list':
         this.handleFolderList(msg, send);
         break;
+      case 'server:info':
+        this.handleServerInfo(msg, send);
+        break;
       case 'agent:query':
         this.handleAgentQuery(msg, send, wsServer);
         break;
@@ -175,6 +178,15 @@ export class SessionManager {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  private handleServerInfo(msg: { requestId: string }, send: (reply: DownstreamMessage) => void) {
+    send({
+      type: 'server:info_result',
+      requestId: msg.requestId,
+      homePath: os.homedir(),
+      hostname: os.hostname(),
+    });
   }
 
   private async handleAgentQuery(
