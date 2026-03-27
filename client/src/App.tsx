@@ -8,6 +8,7 @@ import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { loadKeybindings, matchesBinding, formatBinding } from './keybindings';
+import { loadSavedProjects, saveSavedProjects } from './projects-storage';
 
 declare global {
   interface Window {
@@ -24,7 +25,13 @@ export function App() {
   const { connected, connect, send, onMessage } = useWebSocket();
   const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(onMessage);
 
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [projects, setProjects] = useState<ProjectInfo[]>(() => {
+    return loadSavedProjects().map(p => ({
+      ...p,
+      agentStatus: 'idle' as const,
+      connectionStatus: 'disconnected' as const,
+    }));
+  });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -53,18 +60,72 @@ export function App() {
     init();
   }, [connect]);
 
-  // Create project with a given cwd
-  const createProjectWithCwd = useCallback((cwd: string) => {
+  // Persist projects to localStorage whenever they change
+  const persistProjects = useCallback((list: ProjectInfo[]) => {
+    saveSavedProjects(list.map(p => ({ id: p.id, name: p.name, cwd: p.cwd })));
+  }, []);
+
+  // Connect a project to the server (send project:create)
+  const connectProject = useCallback((project: ProjectInfo) => {
+    if (project.connectionStatus === 'connected' || project.connectionStatus === 'connecting') return;
+
+    // Mark as connecting
+    setProjects(prev => prev.map(p =>
+      p.id === project.id ? { ...p, connectionStatus: 'connecting' as const } : p
+    ));
+
     const requestId = `req_${++requestCounter}`;
     const unsub = onMessage((msg) => {
       if (msg.type === 'project:created' && msg.requestId === requestId) {
-        const p: ProjectInfo = {
-          id: msg.project.id,
-          name: msg.project.name ?? cwd.split('/').pop() ?? 'project',
-          cwd,
-          agentStatus: 'idle',
-        };
-        setProjects(prev => [...prev, p]);
+        setProjects(prev => {
+          const next = prev.map(p =>
+            p.id === project.id ? { ...p, id: msg.project.id, connectionStatus: 'connected' as const } : p
+          );
+          persistProjects(next);
+          return next;
+        });
+        initProject(msg.project.id);
+        unsub();
+      }
+    });
+
+    send({ type: 'project:create', cwd: project.cwd, requestId });
+  }, [send, onMessage, initProject, persistProjects]);
+
+  // Create a new project from FolderPicker and immediately connect
+  const createProjectWithCwd = useCallback((cwd: string) => {
+    // Check if project with same cwd already exists
+    const existing = projectsRef.current.find(p => p.cwd === cwd);
+    if (existing) {
+      setActiveProjectId(existing.id);
+      if (existing.connectionStatus === 'disconnected') connectProject(existing);
+      return;
+    }
+
+    const tempId = `local_${++requestCounter}`;
+    const name = cwd.split('/').pop() ?? 'project';
+    const p: ProjectInfo = { id: tempId, name, cwd, agentStatus: 'idle', connectionStatus: 'connecting' };
+
+    setProjects(prev => {
+      const next = [...prev, p];
+      persistProjects(next);
+      return next;
+    });
+    setActiveProjectId(tempId);
+
+    // Immediately connect since user just picked this folder
+    const requestId = `req_${++requestCounter}`;
+    const unsub = onMessage((msg) => {
+      if (msg.type === 'project:created' && msg.requestId === requestId) {
+        setProjects(prev => {
+          const next = prev.map(proj =>
+            proj.id === tempId
+              ? { ...proj, id: msg.project.id, name: msg.project.name ?? name, connectionStatus: 'connected' as const }
+              : proj
+          );
+          persistProjects(next);
+          return next;
+        });
         setActiveProjectId(msg.project.id);
         initProject(msg.project.id);
         unsub();
@@ -72,18 +133,27 @@ export function App() {
     });
 
     send({ type: 'project:create', cwd, requestId });
-  }, [send, onMessage, initProject]);
+  }, [send, onMessage, initProject, connectProject, persistProjects]);
 
   // Open folder picker
   const openFolderPicker = useCallback(() => {
     setShowFolderPicker(true);
   }, []);
 
-  // Auto-open folder picker on first connect
+  // Auto-open folder picker on first connect if no saved projects
   useEffect(() => {
     if (!connected || projectsRef.current.length > 0) return;
     setShowFolderPicker(true);
   }, [connected]);
+
+  // Lazy connect: when active project changes, connect if needed
+  useEffect(() => {
+    if (!connected || !activeProjectId) return;
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (project && project.connectionStatus === 'disconnected') {
+      connectProject(project);
+    }
+  }, [connected, activeProjectId, connectProject]);
 
   // Sync agent status from project state back to sidebar
   useEffect(() => {
@@ -146,10 +216,12 @@ export function App() {
         const list = projectsRef.current;
         const idx = list.findIndex(p => p.id === pid);
         removeProject(pid);
-        setProjects(prev => prev.filter(p => p.id !== pid));
-        if (list.length > 1) {
-          const nextIdx = Math.min(idx, list.length - 2);
-          setActiveProjectId(list.filter(p => p.id !== pid)[nextIdx]?.id ?? null);
+        const next = list.filter(p => p.id !== pid);
+        setProjects(next);
+        persistProjects(next);
+        if (next.length > 0) {
+          const nextIdx = Math.min(idx, next.length - 1);
+          setActiveProjectId(next[nextIdx]?.id ?? null);
         } else {
           setActiveProjectId(null);
         }
