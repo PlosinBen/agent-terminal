@@ -56,6 +56,7 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .tab-bar {
@@ -131,4 +132,16 @@ body {
 
 .connect-prompt strong {
   color: var(--accent);
+}
+
+.reconnecting-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
+  font-size: 16px;
+  z-index: 100;
 }

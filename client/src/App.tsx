@@ -77,16 +77,6 @@ export function App() {
   const serverHostRef = useRef(serverHost);
   serverHostRef.current = serverHost;
 
-  // Track connection status — use ref for host comparison to avoid race conditions
-  useEffect(() => {
-    return service.on(ServiceEvent.ConnectionChanged, (payload) => {
-      const p = payload as ConnectionChangedPayload;
-      if (p.host === serverHostRef.current) {
-        setConnected(p.status === 'connected');
-      }
-    });
-  }, [service]);
-
   // Acquire WS connection on mount + fetch home path
   useEffect(() => {
     let host = DEFAULT_SERVER_HOST;
@@ -142,6 +132,37 @@ export function App() {
     ));
     initProject(project.id);
   }, [service, initProject]);
+
+  // Track connection status — use ref for host comparison to avoid race conditions
+  useEffect(() => {
+    return service.on(ServiceEvent.ConnectionChanged, (payload) => {
+      const ev = payload as ConnectionChangedPayload;
+      if (ev.host !== serverHostRef.current) return;
+
+      setConnected(ev.status === 'connected');
+
+      if (ev.status === 'reconnecting') {
+        // Mark all projects on this server as reconnecting
+        setProjects(prev => prev.map(p =>
+          p.serverHost === ev.host && p.connectionStatus === 'connected'
+            ? { ...p, connectionStatus: 'reconnecting' as const }
+            : p
+        ));
+      } else if (ev.status === 'connected') {
+        // Re-register projects that were reconnecting
+        const toReconnect = projectsRef.current.filter(
+          p => p.serverHost === ev.host && p.connectionStatus === 'reconnecting'
+        );
+        for (const project of toReconnect) {
+          // Reset to disconnected so connectProject will proceed
+          setProjects(prev => prev.map(p =>
+            p.id === project.id ? { ...p, connectionStatus: 'disconnected' as const } : p
+          ));
+          connectProject({ ...project, connectionStatus: 'disconnected' });
+        }
+      }
+    });
+  }, [service, connectProject]);
 
   // Create a new project from FolderPicker and immediately connect
   const createProjectWithCwd = useCallback((cwd: string) => {
@@ -356,6 +377,9 @@ export function App() {
             <StatusLine status={status} project={activeProject} />
             {permissionReq && (
               <PermissionPopup req={permissionReq} onRespond={handlePermission} />
+            )}
+            {activeProject?.connectionStatus === 'reconnecting' && (
+              <div className="reconnecting-overlay">Reconnecting...</div>
             )}
           </>
         ) : activeProjectId && activeProject?.connectionStatus === 'disconnected' ? (

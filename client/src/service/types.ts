@@ -40,7 +40,7 @@ export type ProjectEvent = Extract<DownstreamMessage, { projectId: string }>;
 
 export interface ConnectionChangedPayload {
   host: string;
-  status: 'connected' | 'disconnected' | 'error';
+  status: 'connected' | 'reconnecting' | 'disconnected' | 'error';
 }
 
 // ── Service Event Handler types ──

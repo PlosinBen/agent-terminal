@@ -3,7 +3,7 @@ import { ContextMenu } from './ContextMenu';
 import { getStatusDisplay } from '../utils/statusDisplay';
 import './Sidebar.css';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
 export interface ProjectInfo {
   id: string;

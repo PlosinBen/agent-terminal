@@ -7,7 +7,7 @@ interface PoolEntry {
   refCount: number;
   handlers: Set<MessageHandler>;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
-  statusListeners: Set<(status: 'connected' | 'disconnected' | 'error') => void>;
+  statusListeners: Set<(status: 'connected' | 'reconnecting' | 'disconnected' | 'error') => void>;
   lastDelay: number;
   retryCount: number;
 }
@@ -80,7 +80,7 @@ export class ConnectionManager {
   }
 
   /** Subscribe to connection status changes for a host. */
-  onStatusChange(host: string, listener: (status: 'connected' | 'disconnected' | 'error') => void): () => void {
+  onStatusChange(host: string, listener: (status: 'connected' | 'reconnecting' | 'disconnected' | 'error') => void): () => void {
     const entry = this.pool.get(host);
     if (!entry) return () => {};
     entry.statusListeners.add(listener);
@@ -112,9 +112,9 @@ export class ConnectionManager {
 
     ws.onclose = () => {
       entry.ws = null;
-      for (const listener of entry.statusListeners) listener('disconnected');
-      // Auto-reconnect: lastDelay + retryCount*step + jitter, capped at max
       if (entry.refCount > 0) {
+        // Will auto-reconnect — emit reconnecting, not disconnected
+        for (const listener of entry.statusListeners) listener('reconnecting');
         entry.retryCount++;
         const delay = Math.min(
           entry.lastDelay + entry.retryCount * RECONNECT_STEP + Math.random() * RECONNECT_JITTER,
@@ -122,6 +122,9 @@ export class ConnectionManager {
         );
         entry.lastDelay = delay;
         entry.reconnectTimer = setTimeout(() => this.connect(host, entry), delay);
+      } else {
+        // No refs — truly disconnected
+        for (const listener of entry.statusListeners) listener('disconnected');
       }
     };
 
