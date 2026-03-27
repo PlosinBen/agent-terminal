@@ -8,9 +8,14 @@ interface PoolEntry {
   handlers: Set<MessageHandler>;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   statusListeners: Set<(status: 'connected' | 'disconnected' | 'error') => void>;
+  lastDelay: number;
+  retryCount: number;
 }
 
-const RECONNECT_DELAY = 2000;
+// Reconnect: lastDelay + retryCount * STEP + random jitter, capped at MAX
+const RECONNECT_STEP = 1000;
+const RECONNECT_JITTER = 1000;
+const RECONNECT_MAX = 30000;
 
 export class ConnectionManager {
   private pool = new Map<string, PoolEntry>();
@@ -28,6 +33,8 @@ export class ConnectionManager {
       handlers: new Set(),
       reconnectTimer: null,
       statusListeners: new Set(),
+      lastDelay: 0,
+      retryCount: 0,
     };
     this.pool.set(host, entry);
     this.connect(host, entry);
@@ -63,6 +70,8 @@ export class ConnectionManager {
         handlers: new Set(),
         reconnectTimer: null,
         statusListeners: new Set(),
+        lastDelay: 0,
+      retryCount: 0,
       };
       this.pool.set(host, entry);
     }
@@ -96,15 +105,23 @@ export class ConnectionManager {
     const ws = new WebSocket(`ws://${host}`);
 
     ws.onopen = () => {
+      entry.lastDelay = 0;
+      entry.retryCount = 0;
       for (const listener of entry.statusListeners) listener('connected');
     };
 
     ws.onclose = () => {
       entry.ws = null;
       for (const listener of entry.statusListeners) listener('disconnected');
-      // Auto-reconnect if still has refs
+      // Auto-reconnect: lastDelay + retryCount*step + jitter, capped at max
       if (entry.refCount > 0) {
-        entry.reconnectTimer = setTimeout(() => this.connect(host, entry), RECONNECT_DELAY);
+        entry.retryCount++;
+        const delay = Math.min(
+          entry.lastDelay + entry.retryCount * RECONNECT_STEP + Math.random() * RECONNECT_JITTER,
+          RECONNECT_MAX,
+        );
+        entry.lastDelay = delay;
+        entry.reconnectTimer = setTimeout(() => this.connect(host, entry), delay);
       }
     };
 
