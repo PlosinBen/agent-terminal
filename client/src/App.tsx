@@ -8,7 +8,8 @@ import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { loadKeybindings, matchesBinding, formatBinding } from './keybindings';
-import { loadSavedProjects, saveSavedProjects } from './projects-storage';
+import { loadSavedProjects, saveSavedProjects, generateProjectId } from './projects-storage';
+import type { ConfigUpdate } from './hooks/useProjects';
 
 declare global {
   interface Window {
@@ -23,7 +24,24 @@ let requestCounter = 0;
 
 export function App() {
   const { connected, connect, send, onMessage } = useWebSocket();
-  const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(onMessage);
+  const handleConfigUpdate = useCallback((update: ConfigUpdate) => {
+    setProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id !== update.projectId) return p;
+        return {
+          ...p,
+          ...(update.sessionId !== undefined && { sessionId: update.sessionId }),
+          ...(update.model !== undefined && { model: update.model }),
+          ...(update.permissionMode !== undefined && { permissionMode: update.permissionMode }),
+          ...(update.effort !== undefined && { effort: update.effort }),
+        };
+      });
+      saveSavedProjects(next.map(p => ({ id: p.id, name: p.name, cwd: p.cwd, sessionId: p.sessionId, model: p.model, permissionMode: p.permissionMode, effort: p.effort })));
+      return next;
+    });
+  }, []);
+
+  const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(onMessage, handleConfigUpdate);
 
   const [projects, setProjects] = useState<ProjectInfo[]>(() => {
     return loadSavedProjects().map(p => ({
@@ -62,7 +80,11 @@ export function App() {
 
   // Persist projects to localStorage whenever they change
   const persistProjects = useCallback((list: ProjectInfo[]) => {
-    saveSavedProjects(list.map(p => ({ id: p.id, name: p.name, cwd: p.cwd })));
+    saveSavedProjects(list.map(p => ({
+      id: p.id, name: p.name, cwd: p.cwd,
+      sessionId: p.sessionId, model: p.model,
+      permissionMode: p.permissionMode, effort: p.effort,
+    })));
   }, []);
 
   // Connect a project to the server (send project:create)
@@ -77,20 +99,20 @@ export function App() {
     const requestId = `req_${++requestCounter}`;
     const unsub = onMessage((msg) => {
       if (msg.type === 'project:created' && msg.requestId === requestId) {
-        setProjects(prev => {
-          const next = prev.map(p =>
-            p.id === project.id ? { ...p, id: msg.project.id, connectionStatus: 'connected' as const } : p
-          );
-          persistProjects(next);
-          return next;
-        });
-        initProject(msg.project.id);
+        setProjects(prev => prev.map(p =>
+          p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
+        ));
+        initProject(project.id);
         unsub();
       }
     });
 
-    send({ type: 'project:create', cwd: project.cwd, requestId });
-  }, [send, onMessage, initProject, persistProjects]);
+    send({
+      type: 'project:create', id: project.id, cwd: project.cwd, requestId,
+      sessionId: project.sessionId, model: project.model,
+      permissionMode: project.permissionMode, effort: project.effort,
+    });
+  }, [send, onMessage, initProject]);
 
   // Create a new project from FolderPicker and immediately connect
   const createProjectWithCwd = useCallback((cwd: string) => {
@@ -102,38 +124,19 @@ export function App() {
       return;
     }
 
-    const tempId = `local_${++requestCounter}`;
+    const id = generateProjectId();
     const name = cwd.split('/').pop() ?? 'project';
-    const p: ProjectInfo = { id: tempId, name, cwd, agentStatus: 'idle', connectionStatus: 'connecting' };
+    const p: ProjectInfo = { id, name, cwd, agentStatus: 'idle', connectionStatus: 'disconnected' };
 
     setProjects(prev => {
       const next = [...prev, p];
       persistProjects(next);
       return next;
     });
-    setActiveProjectId(tempId);
+    setActiveProjectId(id);
 
-    // Immediately connect since user just picked this folder
-    const requestId = `req_${++requestCounter}`;
-    const unsub = onMessage((msg) => {
-      if (msg.type === 'project:created' && msg.requestId === requestId) {
-        setProjects(prev => {
-          const next = prev.map(proj =>
-            proj.id === tempId
-              ? { ...proj, id: msg.project.id, name: msg.project.name ?? name, connectionStatus: 'connected' as const }
-              : proj
-          );
-          persistProjects(next);
-          return next;
-        });
-        setActiveProjectId(msg.project.id);
-        initProject(msg.project.id);
-        unsub();
-      }
-    });
-
-    send({ type: 'project:create', cwd, requestId });
-  }, [send, onMessage, initProject, connectProject, persistProjects]);
+    // connectProject will be triggered by lazy connect effect
+  }, [connectProject, persistProjects]);
 
   // Open folder picker
   const openFolderPicker = useCallback(() => {

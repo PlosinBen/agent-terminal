@@ -2,7 +2,7 @@ import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
 import type { WsServer } from './ws-server.js';
 import { ClaudeBackend } from './backend/claude/backend.js';
 import type { AgentBackend, PermissionRequest } from './backend/types.js';
-import { createProject, saveProject, listProjects, type ProjectConfig } from './core/workspace.js';
+import { createProject, type ProjectConfig } from './core/workspace.js';
 import { executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
 import { readdirSync } from 'fs';
@@ -61,9 +61,19 @@ export class SessionManager {
     }
   }
 
-  private handleProjectCreate(msg: { cwd: string; requestId: string }, send: (reply: DownstreamMessage) => void) {
-    const project = createProject(msg.cwd);
+  private handleProjectCreate(
+    msg: { id: string; cwd: string; requestId: string; sessionId?: string; model?: string; permissionMode?: string; effort?: string },
+    send: (reply: DownstreamMessage) => void,
+  ) {
+    // Client owns the project id and config (localStorage is source of truth)
+    const project = createProject(msg.id, msg.cwd);
+    if (msg.sessionId) project.sessionId = msg.sessionId;
+    if (msg.model) project.model = msg.model;
+    if (msg.permissionMode) project.permissionMode = msg.permissionMode;
+    if (msg.effort) project.effort = msg.effort;
+
     const backend = new ClaudeBackend({
+      sessionId: project.sessionId,
       model: project.model,
       permissionMode: project.permissionMode,
       effort: project.effort,
@@ -79,16 +89,14 @@ export class SessionManager {
 
     this.sessions.set(project.id, session);
 
-    // Set up onInit to persist settings
+    // Update in-memory project config after backend init
     backend.onInit(() => {
-      const updated = {
+      session.project = {
         ...session.project,
         model: backend.getModel(),
         permissionMode: backend.getPermissionMode(),
         effort: backend.getEffort(),
       };
-      saveProject(updated);
-      session.project = updated;
     });
 
     send({
@@ -99,11 +107,14 @@ export class SessionManager {
   }
 
   private handleProjectList(msg: { requestId: string }, send: (reply: DownstreamMessage) => void) {
-    const projects = listProjects();
+    // Return in-memory sessions (client localStorage is source of truth)
+    const projects = Array.from(this.sessions.values()).map(s => ({
+      id: s.project.id, name: s.project.name, cwd: s.project.cwd,
+    }));
     send({
       type: 'project:list_result',
       requestId: msg.requestId,
-      projects: projects.map(p => ({ id: p.id, name: p.name, cwd: p.cwd })),
+      projects,
     });
   }
 
@@ -196,10 +207,9 @@ export class SessionManager {
             content: '',
             sessionId: agentMsg.sessionId,
           });
-          // Persist sessionId
-          if (agentMsg.sessionId && session.project.sessionId !== agentMsg.sessionId) {
+          // Update in-memory sessionId (client persists via agent:result msg)
+          if (agentMsg.sessionId) {
             session.project = { ...session.project, sessionId: agentMsg.sessionId };
-            saveProject(session.project);
           }
         }
       }
@@ -252,7 +262,6 @@ export class SessionManager {
       });
       if (providerResult.updated) {
         session.project = { ...session.project, ...providerResult.updated };
-        saveProject(session.project);
       }
       return;
     }

@@ -24,8 +24,17 @@ function createProjectState(): ProjectState {
   };
 }
 
+export interface ConfigUpdate {
+  projectId: string;
+  sessionId?: string;
+  model?: string;
+  permissionMode?: string;
+  effort?: string;
+}
+
 export function useProjects(
   onMessage: (handler: (msg: DownstreamMessage) => void) => () => void,
+  onConfigUpdate?: (update: ConfigUpdate) => void,
 ) {
   const stateRef = useRef<Map<string, ProjectState>>(new Map());
   const [, forceUpdate] = useState(0);
@@ -78,7 +87,9 @@ export function useProjects(
           break;
 
         case 'agent:result':
-          // Server sends empty content (text already streamed); ignore
+          if (msg.sessionId) {
+            onConfigUpdate?.({ projectId: pid, sessionId: msg.sessionId });
+          }
           break;
 
         case 'agent:done':
@@ -120,13 +131,16 @@ export function useProjects(
             role: 'system',
             content: msg.message,
           });
+          if (msg.updated) {
+            onConfigUpdate?.({ projectId: pid, ...msg.updated });
+          }
           rerender();
           break;
       }
     });
 
     return unsub;
-  }, [onMessage, getOrCreate, rerender]);
+  }, [onMessage, getOrCreate, rerender, onConfigUpdate]);
 
   const addUserMessage = useCallback((projectId: string, content: string) => {
     const state = getOrCreate(projectId);

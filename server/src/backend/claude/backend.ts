@@ -26,7 +26,8 @@ export class ClaudeBackend implements AgentBackend {
   private onInitCallback: (() => void) | null = null;
   private abortController: AbortController | null = null;
 
-  constructor(opts?: { model?: string; permissionMode?: string; effort?: string }) {
+  constructor(opts?: { sessionId?: string; model?: string; permissionMode?: string; effort?: string }) {
+    if (opts?.sessionId) this.sessionId = opts.sessionId;
     if (opts?.model) this.model = opts.model;
     if (opts?.permissionMode) this.permissionMode = opts.permissionMode;
     if (opts?.effort) this.effort = opts.effort;

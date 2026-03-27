@@ -45,8 +45,13 @@ export interface PtyResizeMsg {
 
 export interface ProjectCreateMsg {
   type: 'project:create';
+  id: string;
   cwd: string;
   requestId: string;
+  sessionId?: string;
+  model?: string;
+  permissionMode?: string;
+  effort?: string;
 }
 
 export interface ProjectListMsg {

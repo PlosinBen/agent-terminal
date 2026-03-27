@@ -8,6 +8,10 @@ export interface ProjectInfo {
   cwd: string;
   agentStatus: 'idle' | 'running' | 'attention';
   connectionStatus: ConnectionStatus;
+  sessionId?: string;
+  model?: string;
+  permissionMode?: string;
+  effort?: string;
 }
 
 interface Props {
