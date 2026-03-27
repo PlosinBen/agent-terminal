@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useProjects } from './hooks/useProjects';
 import { Sidebar, type ProjectInfo } from './components/Sidebar';
@@ -7,6 +7,7 @@ import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
+import { loadKeybindings, matchesBinding, formatBinding } from './keybindings';
 
 declare global {
   interface Window {
@@ -28,6 +29,8 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [homePath, setHomePath] = useState('/');
+
+  const keybindings = useMemo(() => loadKeybindings(), []);
 
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
@@ -106,35 +109,37 @@ export function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ctrl+B: toggle sidebar
-      if (e.ctrlKey && e.key === 'b') {
+      if (matchesBinding(e, keybindings.toggleSidebar)) {
         e.preventDefault();
         setSidebarVisible(v => !v);
         return;
       }
 
-      // Ctrl+O: new project
-      if (e.ctrlKey && e.key === 'o') {
+      if (matchesBinding(e, keybindings.newProject)) {
         e.preventDefault();
         openFolderPicker();
         return;
       }
 
-      // Ctrl+ArrowUp / Ctrl+ArrowDown: switch project
-      if (e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      if (matchesBinding(e, keybindings.nextProject)) {
         e.preventDefault();
         const list = projectsRef.current;
         if (list.length < 2) return;
         const idx = list.findIndex(p => p.id === activeRef.current);
-        const next = e.key === 'ArrowDown'
-          ? (idx + 1) % list.length
-          : (idx - 1 + list.length) % list.length;
-        setActiveProjectId(list[next].id);
+        setActiveProjectId(list[(idx + 1) % list.length].id);
         return;
       }
 
-      // Ctrl+W: close active project
-      if (e.ctrlKey && e.key === 'w') {
+      if (matchesBinding(e, keybindings.prevProject)) {
+        e.preventDefault();
+        const list = projectsRef.current;
+        if (list.length < 2) return;
+        const idx = list.findIndex(p => p.id === activeRef.current);
+        setActiveProjectId(list[(idx - 1 + list.length) % list.length].id);
+        return;
+      }
+
+      if (matchesBinding(e, keybindings.closeProject)) {
         e.preventDefault();
         const pid = activeRef.current;
         if (!pid) return;
@@ -142,7 +147,6 @@ export function App() {
         const idx = list.findIndex(p => p.id === pid);
         removeProject(pid);
         setProjects(prev => prev.filter(p => p.id !== pid));
-        // Switch to adjacent project
         if (list.length > 1) {
           const nextIdx = Math.min(idx, list.length - 2);
           setActiveProjectId(list.filter(p => p.id !== pid)[nextIdx]?.id ?? null);
@@ -155,7 +159,7 @@ export function App() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [openFolderPicker, removeProject]);
+  }, [keybindings, openFolderPicker, removeProject]);
 
   const activeState = getState(activeProjectId);
 
@@ -207,6 +211,7 @@ export function App() {
         visible={sidebarVisible}
         onSelect={setActiveProjectId}
         onNew={openFolderPicker}
+        newProjectShortcut={formatBinding(keybindings.newProject)}
       />
       <div className="main-area">
         {activeProjectId ? (
@@ -220,7 +225,7 @@ export function App() {
           </>
         ) : (
           <div className="empty-state">
-            {connected ? 'Press Ctrl+O to open a project' : 'Connecting...'}
+            {connected ? `Press ${formatBinding(keybindings.newProject)} to open a project` : 'Connecting...'}
           </div>
         )}
       </div>

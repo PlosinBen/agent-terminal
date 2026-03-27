@@ -13,6 +13,7 @@ interface Props {
   visible: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
+  newProjectShortcut?: string;
 }
 
 const STATUS_COLORS = {
@@ -21,7 +22,7 @@ const STATUS_COLORS = {
   attention: '#e06c75',
 };
 
-export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew }: Props) {
+export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, newProjectShortcut }: Props) {
   if (!visible) return null;
 
   return (
@@ -49,7 +50,7 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew }:
       </div>
       <div className="sidebar-footer">
         <div className="sidebar-new-btn" onClick={onNew}>
-          + New <span className="sidebar-shortcut">Ctrl+O</span>
+          + New {newProjectShortcut && <span className="sidebar-shortcut">{newProjectShortcut}</span>}
         </div>
       </div>
     </div>
