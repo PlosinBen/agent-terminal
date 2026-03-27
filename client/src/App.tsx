@@ -286,6 +286,16 @@ export function App() {
   const permissionReq = activeState?.permissionReq ?? null;
   const activeProject = projects.find(p => p.id === activeProjectId);
 
+  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
+    setProjects(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      persistProjects(next);
+      return next;
+    });
+  }, [persistProjects]);
+
   return (
     <div className="app-layout">
       <Sidebar
@@ -294,6 +304,7 @@ export function App() {
         visible={sidebarVisible}
         onSelect={setActiveProjectId}
         onNew={openFolderPicker}
+        onReorder={handleReorder}
         newProjectShortcut={formatBinding(keybindings.newProject)}
       />
       <div className="main-area">
@@ -316,6 +327,7 @@ export function App() {
             <Terminal
               projectId={activeProjectId}
               visible={activeTab === 'terminal'}
+              connected={activeProject?.connectionStatus === 'connected'}
               send={send}
               onMessage={onMessage}
             />

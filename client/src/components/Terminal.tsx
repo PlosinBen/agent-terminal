@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -9,23 +9,66 @@ import './Terminal.css';
 interface Props {
   projectId: string;
   visible: boolean;
+  connected: boolean;
   send: (msg: UpstreamMessage) => void;
   onMessage: (handler: (msg: DownstreamMessage) => void) => () => void;
 }
 
-export function Terminal({ projectId, visible, send, onMessage }: Props) {
+export function Terminal({ projectId, visible, connected, send, onMessage }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const spawnedRef = useRef(false);
-  const openedRef = useRef(false);
+  const [status, setStatus] = useState<'idle' | 'spawning' | 'ready'>('idle');
+  const [hasOutput, setHasOutput] = useState(false);
   const projectIdRef = useRef(projectId);
   projectIdRef.current = projectId;
   const sendRef = useRef(send);
   sendRef.current = send;
+  const bufferRef = useRef<string[]>([]);
+  const hasOutputRef = useRef(false);
 
-  // Create xterm instance once on mount (but don't open yet)
+  // Listen for pty:spawned, pty:output, pty:exit
   useEffect(() => {
+    const unsub = onMessage((msg) => {
+      if (!('projectId' in msg) || msg.projectId !== projectIdRef.current) return;
+
+      if (msg.type === 'pty:spawned') {
+        setStatus('ready');
+      } else if (msg.type === 'pty:output') {
+        if (xtermRef.current) {
+          xtermRef.current.write(msg.data);
+          if (!hasOutputRef.current) {
+            hasOutputRef.current = true;
+            setHasOutput(true);
+          }
+        } else {
+          bufferRef.current.push(msg.data);
+        }
+      } else if (msg.type === 'pty:exit') {
+        xtermRef.current?.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
+        setStatus('idle');
+      }
+    });
+    return unsub;
+  }, [onMessage]);
+
+  // When visible + connected + idle → send pty:spawn
+  useEffect(() => {
+    if (!visible || !connected || status !== 'idle') return;
+    setStatus('spawning');
+    send({ type: 'pty:spawn', projectId, requestId: `pty_${Date.now()}` });
+  }, [visible, connected, status, projectId, send]);
+
+  // When status becomes ready + visible → create xterm and open
+  useEffect(() => {
+    if (status !== 'ready' || !visible || !containerRef.current) return;
+
+    if (xtermRef.current) {
+      fitAddonRef.current?.fit();
+      xtermRef.current.focus();
+      return;
+    }
+
     const term = new XTerm({
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       fontSize: 13,
@@ -42,70 +85,45 @@ export function Terminal({ projectId, visible, send, onMessage }: Props) {
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon());
 
+    term.open(containerRef.current);
+
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Send input to server
+    if (bufferRef.current.length > 0) {
+      for (const data of bufferRef.current) {
+        term.write(data);
+      }
+      bufferRef.current = [];
+      hasOutputRef.current = true;
+      setHasOutput(true);
+    }
+
     term.onData((data) => {
       sendRef.current({ type: 'pty:input', projectId: projectIdRef.current, data });
     });
 
+    requestAnimationFrame(() => {
+      fitAddon.fit();
+      sendRef.current({
+        type: 'pty:resize',
+        projectId: projectIdRef.current,
+        cols: term.cols,
+        rows: term.rows,
+      });
+      term.focus();
+    });
+  }, [status, visible]);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      term.dispose();
+      xtermRef.current?.dispose();
       xtermRef.current = null;
       fitAddonRef.current = null;
-      openedRef.current = false;
+      bufferRef.current = [];
     };
   }, []);
-
-  // Listen for pty:output and pty:exit
-  useEffect(() => {
-    const unsub = onMessage((msg) => {
-      if (!('projectId' in msg) || msg.projectId !== projectIdRef.current) return;
-
-      if (msg.type === 'pty:output') {
-        xtermRef.current?.write(msg.data);
-      } else if (msg.type === 'pty:exit') {
-        xtermRef.current?.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
-        spawnedRef.current = false;
-      }
-    });
-    return unsub;
-  }, [onMessage]);
-
-  // Open xterm, fit, and spawn when first visible
-  useEffect(() => {
-    if (!visible || !containerRef.current || !xtermRef.current) return;
-
-    // Open xterm into DOM on first visibility
-    if (!openedRef.current) {
-      openedRef.current = true;
-      xtermRef.current.open(containerRef.current);
-    }
-
-    // Fit after layout settles
-    const timer = setTimeout(() => {
-      if (fitAddonRef.current && xtermRef.current) {
-        fitAddonRef.current.fit();
-        send({
-          type: 'pty:resize',
-          projectId: projectIdRef.current,
-          cols: xtermRef.current.cols,
-          rows: xtermRef.current.rows,
-        });
-      }
-    }, 50);
-
-    // Spawn if not yet spawned
-    if (!spawnedRef.current) {
-      spawnedRef.current = true;
-      send({ type: 'pty:spawn', projectId, requestId: `pty_${Date.now()}` });
-    }
-
-    xtermRef.current.focus();
-
-    return () => clearTimeout(timer);
-  }, [visible, projectId, send]);
 
   // Handle window resize
   useEffect(() => {
@@ -123,11 +141,31 @@ export function Terminal({ projectId, visible, send, onMessage }: Props) {
     return () => window.removeEventListener('resize', onResize);
   }, [visible]);
 
+  // Re-fit when switching back to terminal tab
+  useEffect(() => {
+    if (!visible || !xtermRef.current || !fitAddonRef.current) return;
+    requestAnimationFrame(() => {
+      fitAddonRef.current?.fit();
+      xtermRef.current?.focus();
+    });
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const showPlaceholder = !hasOutput;
+
   return (
-    <div
-      ref={containerRef}
-      className="terminal-container"
-      style={{ display: visible ? 'block' : 'none' }}
-    />
+    <>
+      {showPlaceholder && (
+        <div className="terminal-placeholder">
+          {!connected ? 'Connecting to server...' : 'Starting terminal...'}
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        className="terminal-container"
+        style={{ display: showPlaceholder ? 'none' : undefined }}
+      />
+    </>
   );
 }

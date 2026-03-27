@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import './Sidebar.css';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -20,6 +21,7 @@ interface Props {
   visible: boolean;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
   newProjectShortcut?: string;
 }
 
@@ -33,19 +35,37 @@ function getStatusDisplay(p: ProjectInfo): { icon: string; color: string } | nul
   }
 }
 
-export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, newProjectShortcut }: Props) {
+export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, newProjectShortcut }: Props) {
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
   if (!visible) return null;
 
   return (
     <div className="sidebar">
       <div className="sidebar-header">Projects</div>
       <div className="sidebar-list">
-        {projects.map((p) => {
+        {projects.map((p, i) => {
           const status = getStatusDisplay(p);
           return (
             <div
               key={p.id}
-              className={`sidebar-item ${p.id === activeProjectId ? 'active' : ''}`}
+              className={
+                'sidebar-item'
+                + (p.id === activeProjectId ? ' active' : '')
+                + (dragIdx === i ? ' dragging' : '')
+                + (overIdx === i && dragIdx !== i ? ' drag-over' : '')
+              }
+              draggable
+              onDragStart={() => setDragIdx(i)}
+              onDragOver={(e) => { e.preventDefault(); setOverIdx(i); }}
+              onDragLeave={() => setOverIdx(null)}
+              onDrop={() => {
+                if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
+                setDragIdx(null);
+                setOverIdx(null);
+              }}
+              onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
               onClick={() => onSelect(p.id)}
             >
               <span
