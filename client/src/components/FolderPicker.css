@@ -61,23 +61,6 @@
   min-height: 0;
 }
 
-.folder-picker-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.folder-picker-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.folder-picker-list::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-
-.folder-picker-list::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
-}
-
 .folder-picker-item {
   display: flex;
   align-items: center;
