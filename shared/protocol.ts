@@ -96,6 +96,9 @@ export interface AgentResultMsg {
   projectId: string;
   content: string;
   sessionId?: string;
+  model?: string;
+  permissionMode?: string;
+  effort?: string;
 }
 
 export interface AgentDoneMsg {

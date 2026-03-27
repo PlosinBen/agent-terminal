@@ -200,12 +200,15 @@ export class SessionManager {
             content: agentMsg.content,
           });
         } else if (agentMsg.type === 'result') {
-          // result content duplicates the streamed text; only send sessionId
+          // result content duplicates the streamed text; send config back to client
           send({
             type: 'agent:result',
             projectId: msg.projectId,
             content: '',
             sessionId: agentMsg.sessionId,
+            model: session.project.model,
+            permissionMode: session.project.permissionMode,
+            effort: session.project.effort,
           });
           // Update in-memory sessionId (client persists via agent:result msg)
           if (agentMsg.sessionId) {

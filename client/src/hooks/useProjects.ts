@@ -87,8 +87,14 @@ export function useProjects(
           break;
 
         case 'agent:result':
-          if (msg.sessionId) {
-            onConfigUpdate?.({ projectId: pid, sessionId: msg.sessionId });
+          if (msg.sessionId || msg.model || msg.permissionMode || msg.effort) {
+            onConfigUpdate?.({
+              projectId: pid,
+              sessionId: msg.sessionId,
+              model: msg.model,
+              permissionMode: msg.permissionMode,
+              effort: msg.effort,
+            });
           }
           break;
 
