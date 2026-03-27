@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "dev": "tsx src/main.ts"
+    "dev": "tsc --watch --preserveWatchOutput"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.83",

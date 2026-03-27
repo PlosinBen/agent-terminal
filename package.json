@@ -5,6 +5,7 @@
   "description": "Agent terminal — Electron + WebSocket",
   "workspaces": ["server", "client"],
   "scripts": {
+    "dev": "npm run build:server && concurrently -n tsc,vite,electron -c blue,green,yellow \"npm run dev -w server\" \"npm run dev -w client\" \"VITE_DEV_SERVER_URL=http://localhost:5173 electron server/dist/main.js\"",
     "dev:server": "npm run dev -w server",
     "dev:client": "npm run dev -w client",
     "build:server": "npm run build -w server",
