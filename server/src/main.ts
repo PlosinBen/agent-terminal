@@ -66,7 +66,8 @@ function setupMessageRouter() {
 app.whenReady().then(async () => {
   registerIpcHandlers();
   setupMessageRouter();
-  const port = await wsServer.start(0);
+  const preferredPort = parseInt(process.env.AGENT_TERMINAL_PORT || '0', 10) || 0;
+  const port = await wsServer.start(preferredPort);
   logger.debug(`Electron main ready, WS port=${port}`);
 
   // Write port to env so preload can expose it

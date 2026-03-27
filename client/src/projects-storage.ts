@@ -8,6 +8,7 @@ export interface SavedProject {
   id: string;
   name: string;
   cwd: string;
+  serverHost: string;
   sessionId?: string;
   model?: string;
   permissionMode?: string;

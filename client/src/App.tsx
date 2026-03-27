@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
+import { useService, ServiceEvent } from './service';
+import type { ConnectionChangedPayload } from './service';
 import { useProjects } from './hooks/useProjects';
 import { Sidebar, type ProjectInfo } from './components/Sidebar';
 import { MessageList } from './components/MessageList';
@@ -22,10 +23,13 @@ declare global {
   }
 }
 
-let requestCounter = 0;
+const DEFAULT_SERVER_HOST = 'localhost:9100';
 
 export function App() {
-  const { connected, connect, send, onMessage } = useWebSocket();
+  const service = useService();
+  const [serverHost, setServerHost] = useState(DEFAULT_SERVER_HOST);
+  const [connected, setConnected] = useState(false);
+
   const handleConfigUpdate = useCallback((update: ConfigUpdate) => {
     setProjects(prev => {
       const next = prev.map(p => {
@@ -36,18 +40,24 @@ export function App() {
           ...(update.model !== undefined && { model: update.model }),
           ...(update.permissionMode !== undefined && { permissionMode: update.permissionMode }),
           ...(update.effort !== undefined && { effort: update.effort }),
+          ...(update.agentStatus !== undefined && { agentStatus: update.agentStatus }),
         };
       });
-      saveSavedProjects(next.map(p => ({ id: p.id, name: p.name, cwd: p.cwd, sessionId: p.sessionId, model: p.model, permissionMode: p.permissionMode, effort: p.effort })));
+      saveSavedProjects(next.map(p => ({
+        id: p.id, name: p.name, cwd: p.cwd, serverHost: p.serverHost,
+        sessionId: p.sessionId, model: p.model,
+        permissionMode: p.permissionMode, effort: p.effort,
+      })));
       return next;
     });
   }, []);
 
-  const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(onMessage, handleConfigUpdate);
+  const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(service, handleConfigUpdate);
 
   const [projects, setProjects] = useState<ProjectInfo[]>(() => {
     return loadSavedProjects().map(p => ({
       ...p,
+      serverHost: p.serverHost || DEFAULT_SERVER_HOST,
       agentStatus: 'idle' as const,
       connectionStatus: 'disconnected' as const,
     }));
@@ -64,14 +74,34 @@ export function App() {
   projectsRef.current = projects;
   const activeRef = useRef(activeProjectId);
   activeRef.current = activeProjectId;
+  const serverHostRef = useRef(serverHost);
+  serverHostRef.current = serverHost;
 
-  // Connect to WS on mount + fetch home path
+  // Track connection status — use ref for host comparison to avoid race conditions
   useEffect(() => {
+    return service.on(ServiceEvent.ConnectionChanged, (payload) => {
+      const p = payload as ConnectionChangedPayload;
+      if (p.host === serverHostRef.current) {
+        setConnected(p.status === 'connected');
+      }
+    });
+  }, [service]);
+
+  // Acquire WS connection on mount + fetch home path
+  useEffect(() => {
+    let host = DEFAULT_SERVER_HOST;
     const init = async () => {
       const port = window.electronAPI
         ? await window.electronAPI.getWsPort()
         : 9100;
-      connect(port);
+      host = `localhost:${port}`;
+      setServerHost(host);
+      service.acquireConnection(host);
+
+      // Check if already connected (in case onopen fired before listener was ready)
+      if (service.isConnected(host)) {
+        setConnected(true);
+      }
 
       if (window.electronAPI) {
         const home = await window.electronAPI.getHomePath();
@@ -79,43 +109,39 @@ export function App() {
       }
     };
     init();
-  }, [connect]);
+    return () => {
+      service.releaseConnection(host);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist projects to localStorage whenever they change
   const persistProjects = useCallback((list: ProjectInfo[]) => {
     saveSavedProjects(list.map(p => ({
-      id: p.id, name: p.name, cwd: p.cwd,
+      id: p.id, name: p.name, cwd: p.cwd, serverHost: p.serverHost,
       sessionId: p.sessionId, model: p.model,
       permissionMode: p.permissionMode, effort: p.effort,
     })));
   }, []);
 
   // Connect a project to the server (send project:create)
-  const connectProject = useCallback((project: ProjectInfo) => {
+  const connectProject = useCallback(async (project: ProjectInfo) => {
     if (project.connectionStatus === 'connected' || project.connectionStatus === 'connecting') return;
+
+    // Ensure project uses the current server host
+    const projectWithHost = { ...project, serverHost: serverHostRef.current };
 
     // Mark as connecting
     setProjects(prev => prev.map(p =>
-      p.id === project.id ? { ...p, connectionStatus: 'connecting' as const } : p
+      p.id === project.id ? { ...p, serverHost: serverHostRef.current, connectionStatus: 'connecting' as const } : p
     ));
 
-    const requestId = `req_${++requestCounter}`;
-    const unsub = onMessage((msg) => {
-      if (msg.type === 'project:created' && msg.requestId === requestId) {
-        setProjects(prev => prev.map(p =>
-          p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
-        ));
-        initProject(project.id);
-        unsub();
-      }
-    });
+    await service.connectProject(projectWithHost);
 
-    send({
-      type: 'project:create', id: project.id, cwd: project.cwd, requestId,
-      sessionId: project.sessionId, model: project.model,
-      permissionMode: project.permissionMode, effort: project.effort,
-    });
-  }, [send, onMessage, initProject]);
+    setProjects(prev => prev.map(p =>
+      p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
+    ));
+    initProject(project.id);
+  }, [service, initProject]);
 
   // Create a new project from FolderPicker and immediately connect
   const createProjectWithCwd = useCallback((cwd: string) => {
@@ -129,7 +155,7 @@ export function App() {
 
     const id = generateProjectId();
     const name = cwd.split('/').pop() ?? 'project';
-    const p: ProjectInfo = { id, name, cwd, agentStatus: 'idle', connectionStatus: 'disconnected' };
+    const p: ProjectInfo = { id, name, cwd, serverHost, agentStatus: 'idle', connectionStatus: 'disconnected' };
 
     setProjects(prev => {
       const next = [...prev, p];
@@ -141,7 +167,7 @@ export function App() {
     // Connect immediately since user explicitly created this project
     // Use setTimeout to let state update first
     setTimeout(() => connectProject(p), 0);
-  }, [connectProject, persistProjects]);
+  }, [connectProject, persistProjects, serverHost]);
 
   // Open folder picker
   const openFolderPicker = useCallback(() => {
@@ -162,27 +188,6 @@ export function App() {
       connectProject(project);
     }
   }, [connected, activeProjectId, connectProject]);
-
-  // Sync agent status from project state back to sidebar
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProjects(prev => {
-        let changed = false;
-        const next = prev.map(p => {
-          const state = getState(p.id);
-          if (!state) return p;
-          const newStatus = state.status.agentStatus;
-          if (p.agentStatus !== newStatus) {
-            changed = true;
-            return { ...p, agentStatus: newStatus };
-          }
-          return p;
-        });
-        return changed ? next : prev;
-      });
-    }, 500);
-    return () => clearInterval(interval);
-  }, [getState]);
 
   const closeProject = useCallback((targetId: string) => {
     const list = projectsRef.current;
@@ -260,37 +265,35 @@ export function App() {
 
   const handleSubmit = useCallback((text: string) => {
     if (!activeProjectId) return;
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (!project) return;
 
     if (text.startsWith('/')) {
       const spaceIdx = text.indexOf(' ');
       const command = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
       const args = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
-      const requestId = `req_${++requestCounter}`;
-      send({ type: 'agent:command', projectId: activeProjectId, command, args, requestId });
+      service.sendCommand(project, command, args);
       addUserMessage(activeProjectId, text);
       return;
     }
 
-    send({ type: 'agent:query', projectId: activeProjectId, prompt: text });
+    service.sendQuery(project, text);
     addUserMessage(activeProjectId, text);
-  }, [activeProjectId, send, addUserMessage]);
+  }, [activeProjectId, service, addUserMessage]);
 
   const handleStop = useCallback(() => {
-    if (activeProjectId) {
-      send({ type: 'agent:stop', projectId: activeProjectId });
-    }
-  }, [activeProjectId, send]);
+    if (!activeProjectId) return;
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (project) service.stopAgent(project);
+  }, [activeProjectId, service]);
 
   const handlePermission = useCallback((result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => {
     if (!activeProjectId || !activeState?.permissionReq) return;
-    send({
-      type: 'permission:response',
-      projectId: activeProjectId,
-      requestId: activeState.permissionReq.requestId,
-      result,
-    });
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (!project) return;
+    service.respondPermission(project, activeState.permissionReq.requestId, result);
     clearPermission(activeProjectId);
-  }, [activeProjectId, activeState, send, clearPermission]);
+  }, [activeProjectId, activeState, service, clearPermission]);
 
   const loading = activeState?.loading ?? false;
   const messages = activeState?.messages ?? [];
@@ -346,11 +349,9 @@ export function App() {
               <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
             </div>
             <Terminal
-              projectId={activeProjectId}
+              project={activeProject!}
               visible={activeTab === 'terminal'}
-              connected={activeProject?.connectionStatus === 'connected'}
-              send={send}
-              onMessage={onMessage}
+              service={service}
             />
             <StatusLine status={status} project={activeProject} />
             {permissionReq && (
@@ -375,8 +376,8 @@ export function App() {
       </div>
       {showFolderPicker && (
         <FolderPicker
-          send={send}
-          onMessage={onMessage}
+          service={service}
+          serverHost={serverHost}
           initialPath={homePath}
           onSelect={(folderPath) => {
             setShowFolderPicker(false);

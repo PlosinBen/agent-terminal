@@ -9,6 +9,7 @@ export interface ProjectInfo {
   id: string;
   name: string;
   cwd: string;
+  serverHost: string;
   agentStatus: 'idle' | 'running' | 'attention';
   connectionStatus: ConnectionStatus;
   sessionId?: string;

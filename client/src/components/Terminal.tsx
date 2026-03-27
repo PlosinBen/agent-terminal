@@ -2,39 +2,39 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import type { UpstreamMessage, DownstreamMessage } from '@shared/protocol';
+import type { AgentService } from '../service/agent-service';
+import type { ProjectInfo } from './Sidebar';
+import { ServiceEvent } from '../service/types';
 import '@xterm/xterm/css/xterm.css';
 import './Terminal.css';
 
 interface Props {
-  projectId: string;
+  project: ProjectInfo;
   visible: boolean;
-  connected: boolean;
-  send: (msg: UpstreamMessage) => void;
-  onMessage: (handler: (msg: DownstreamMessage) => void) => () => void;
+  service: AgentService;
 }
 
-export function Terminal({ projectId, visible, connected, send, onMessage }: Props) {
+export function Terminal({ project, visible, service }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [status, setStatus] = useState<'idle' | 'spawning' | 'ready'>('idle');
   const [hasOutput, setHasOutput] = useState(false);
-  const projectIdRef = useRef(projectId);
-  projectIdRef.current = projectId;
-  const sendRef = useRef(send);
-  sendRef.current = send;
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const serviceRef = useRef(service);
+  serviceRef.current = service;
   const bufferRef = useRef<string[]>([]);
   const hasOutputRef = useRef(false);
 
-  // Listen for pty:spawned, pty:output, pty:exit
-  useEffect(() => {
-    const unsub = onMessage((msg) => {
-      if (!('projectId' in msg) || msg.projectId !== projectIdRef.current) return;
+  const connected = project.connectionStatus === 'connected';
 
-      if (msg.type === 'pty:spawned') {
-        setStatus('ready');
-      } else if (msg.type === 'pty:output') {
+  // Listen for pty:output and pty:exit via service events
+  useEffect(() => {
+    const unsubs = [
+      service.on(ServiceEvent.PtyOutput, (payload) => {
+        const msg = payload as { projectId: string; data: string };
+        if (msg.projectId !== projectRef.current.id) return;
         if (xtermRef.current) {
           xtermRef.current.write(msg.data);
           if (!hasOutputRef.current) {
@@ -44,20 +44,25 @@ export function Terminal({ projectId, visible, connected, send, onMessage }: Pro
         } else {
           bufferRef.current.push(msg.data);
         }
-      } else if (msg.type === 'pty:exit') {
+      }),
+      service.on(ServiceEvent.PtyExit, (payload) => {
+        const msg = payload as { projectId: string; exitCode: number };
+        if (msg.projectId !== projectRef.current.id) return;
         xtermRef.current?.write(`\r\n[Process exited with code ${msg.exitCode}]\r\n`);
         setStatus('idle');
-      }
-    });
-    return unsub;
-  }, [onMessage]);
+      }),
+    ];
+    return () => { for (const unsub of unsubs) unsub(); };
+  }, [service]);
 
-  // When visible + connected + idle → send pty:spawn
+  // When visible + connected + idle → spawn pty via service
   useEffect(() => {
     if (!visible || !connected || status !== 'idle') return;
     setStatus('spawning');
-    send({ type: 'pty:spawn', projectId, requestId: `pty_${Date.now()}` });
-  }, [visible, connected, status, projectId, send]);
+    service.spawnPty(projectRef.current).then(() => {
+      setStatus('ready');
+    });
+  }, [visible, connected, status, service]);
 
   // When status becomes ready + visible → create xterm and open
   useEffect(() => {
@@ -100,17 +105,12 @@ export function Terminal({ projectId, visible, connected, send, onMessage }: Pro
     }
 
     term.onData((data) => {
-      sendRef.current({ type: 'pty:input', projectId: projectIdRef.current, data });
+      serviceRef.current.sendPtyInput(projectRef.current, data);
     });
 
     requestAnimationFrame(() => {
       fitAddon.fit();
-      sendRef.current({
-        type: 'pty:resize',
-        projectId: projectIdRef.current,
-        cols: term.cols,
-        rows: term.rows,
-      });
+      serviceRef.current.resizePty(projectRef.current, term.cols, term.rows);
       term.focus();
     });
   }, [status, visible]);
@@ -130,12 +130,7 @@ export function Terminal({ projectId, visible, connected, send, onMessage }: Pro
     const onResize = () => {
       if (!visible || !fitAddonRef.current || !xtermRef.current) return;
       fitAddonRef.current.fit();
-      sendRef.current({
-        type: 'pty:resize',
-        projectId: projectIdRef.current,
-        cols: xtermRef.current.cols,
-        rows: xtermRef.current.rows,
-      });
+      serviceRef.current.resizePty(projectRef.current, xtermRef.current.cols, xtermRef.current.rows);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);

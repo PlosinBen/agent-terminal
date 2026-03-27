@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { UpstreamMessage, DownstreamMessage } from '@shared/protocol';
+import type { AgentService } from '../service/agent-service';
 import './FolderPicker.css';
 
 interface Props {
-  send: (msg: UpstreamMessage) => void;
-  onMessage: (handler: (msg: DownstreamMessage) => void) => () => void;
+  service: AgentService;
+  serverHost: string;
   initialPath: string;
   onSelect: (path: string) => void;
   onCancel: () => void;
 }
 
-let reqCounter = 0;
-
-export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel }: Props) {
+export function FolderPicker({ service, serverHost, initialPath, onSelect, onCancel }: Props) {
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [entries, setEntries] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -30,19 +28,13 @@ export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel 
     setFilter('');
     setSelectedIndex(0);
 
-    const requestId = `folder_${++reqCounter}`;
-    const unsub = onMessage((msg) => {
-      if (msg.type === 'folder:list_result' && msg.requestId === requestId) {
-        setCurrentPath(msg.path);
-        setEntries(msg.entries);
-        setError(msg.error ?? null);
-        setLoading(false);
-        unsub();
-      }
+    service.listFolders({ host: serverHost, name: 'local' }, path).then((result) => {
+      setCurrentPath(result.path);
+      setEntries(result.entries);
+      setError(result.error ?? null);
+      setLoading(false);
     });
-
-    send({ type: 'folder:list', path, requestId });
-  }, [send, onMessage]);
+  }, [service, serverHost]);
 
   // Initial load
   useEffect(() => {
