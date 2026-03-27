@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import type { Server as HttpServer } from 'http';
 import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
 import { logger } from './core/logger.js';
 
@@ -14,6 +15,7 @@ export class WsServer {
     this.handler = handler;
   }
 
+  /** Start a standalone WS server on the given port (used by Electron mode) */
   start(preferredPort = 0): Promise<number> {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port: preferredPort });
@@ -30,27 +32,39 @@ export class WsServer {
         reject(err);
       });
 
-      this.wss.on('connection', (ws) => {
-        this.clients.add(ws);
-        logger.debug(`WS client connected (total: ${this.clients.size})`);
+      this.setupConnectionHandler();
+    });
+  }
 
-        ws.on('message', (raw) => {
-          try {
-            const msg = JSON.parse(raw.toString()) as UpstreamMessage;
-            this.handler?.(msg, (reply) => {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify(reply));
-              }
-            });
-          } catch (err) {
-            logger.error(`WS parse error: ${err}`);
-          }
-        });
+  /** Attach WS to an existing HTTP server (used by standalone mode) */
+  attachToServer(httpServer: HttpServer): void {
+    this.wss = new WebSocketServer({ server: httpServer });
+    this.setupConnectionHandler();
+  }
 
-        ws.on('close', () => {
-          this.clients.delete(ws);
-          logger.debug(`WS client disconnected (total: ${this.clients.size})`);
-        });
+  private setupConnectionHandler(): void {
+    if (!this.wss) return;
+
+    this.wss.on('connection', (ws) => {
+      this.clients.add(ws);
+      logger.debug(`WS client connected (total: ${this.clients.size})`);
+
+      ws.on('message', (raw) => {
+        try {
+          const msg = JSON.parse(raw.toString()) as UpstreamMessage;
+          this.handler?.(msg, (reply) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify(reply));
+            }
+          });
+        } catch (err) {
+          logger.error(`WS parse error: ${err}`);
+        }
+      });
+
+      ws.on('close', () => {
+        this.clients.delete(ws);
+        logger.debug(`WS client disconnected (total: ${this.clients.size})`);
       });
     });
   }

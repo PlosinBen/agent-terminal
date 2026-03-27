@@ -23,7 +23,7 @@ declare global {
   }
 }
 
-const DEFAULT_SERVER_HOST = 'localhost:9100';
+const DEFAULT_SERVER_HOST = window.electronAPI ? 'localhost:9100' : location.host;
 
 export function App() {
   const service = useService();
@@ -81,10 +81,12 @@ export function App() {
   useEffect(() => {
     let host = DEFAULT_SERVER_HOST;
     const init = async () => {
-      const port = window.electronAPI
-        ? await window.electronAPI.getWsPort()
-        : 9100;
-      host = `localhost:${port}`;
+      if (window.electronAPI) {
+        const port = await window.electronAPI.getWsPort();
+        host = `localhost:${port}`;
+      } else {
+        host = location.host;
+      }
       setServerHost(host);
       service.acquireConnection(host);
 

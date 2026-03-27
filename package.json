@@ -11,7 +11,8 @@
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
     "electron": "electron server/dist/main.js",
-    "start": "npm run build:server && npm run electron"
+    "start": "npm run build:server && npm run electron",
+    "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js"
   },
   "devDependencies": {
     "electron": "^35.0.0",

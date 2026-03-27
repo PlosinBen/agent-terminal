@@ -1,30 +1,13 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { execFileSync } from 'child_process';
-import { WsServer } from './ws-server.js';
-import { SessionManager } from './session-manager.js';
 import { logger } from './core/logger.js';
 import { registerIpcHandlers } from './ipc.js';
-import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
+import { fixMacOsPath, createServerCore, getPreferredPort } from './server-core.js';
 
-// Fix PATH for GUI-launched apps on macOS
-if (process.platform === 'darwin') {
-  try {
-    const shell = process.env.SHELL || '/bin/zsh';
-    const rawPath = execFileSync(shell, ['-l', '-c', 'echo $PATH'], {
-      timeout: 3000,
-      encoding: 'utf8',
-    }).trim();
-    if (rawPath) process.env.PATH = rawPath;
-  } catch {
-    const extra = ['/opt/homebrew/bin', '/usr/local/bin'];
-    process.env.PATH = `${extra.join(':')}:${process.env.PATH || ''}`;
-  }
-}
+fixMacOsPath();
 
 let mainWindow: BrowserWindow | null = null;
-const wsServer = new WsServer();
-const sessionManager = new SessionManager();
+const core = createServerCore();
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
@@ -57,17 +40,9 @@ function createWindow(wsPort: number) {
   });
 }
 
-function setupMessageRouter() {
-  wsServer.onMessage((msg: UpstreamMessage, send: (reply: DownstreamMessage) => void) => {
-    sessionManager.handleMessage(msg, send, wsServer);
-  });
-}
-
 app.whenReady().then(async () => {
   registerIpcHandlers();
-  setupMessageRouter();
-  const preferredPort = parseInt(process.env.AGENT_TERMINAL_PORT || '0', 10) || 0;
-  const port = await wsServer.start(preferredPort);
+  const port = await core.wsServer.start(getPreferredPort());
   logger.debug(`Electron main ready, WS port=${port}`);
 
   // Write port to env so preload can expose it
@@ -83,8 +58,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  sessionManager.dispose();
-  wsServer.stop();
+  core.sessionManager.dispose();
+  core.wsServer.stop();
   if (process.platform !== 'darwin') {
     app.quit();
   }
