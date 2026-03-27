@@ -9,6 +9,7 @@ import { readdirSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from './core/logger.js';
+import * as pty from 'node-pty';
 
 interface ProjectSession {
   project: ProjectConfig;
@@ -16,6 +17,7 @@ interface ProjectSession {
   loading: boolean;
   permissionResolvers: Map<string, (result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => void>;
   turns: number;
+  ptyProcess: pty.IPty | null;
 }
 
 function getGitBranch(cwd: string): string {
@@ -32,6 +34,7 @@ export class SessionManager {
   private sessions = new Map<string, ProjectSession>();
 
   handleMessage(msg: UpstreamMessage, send: (reply: DownstreamMessage) => void, wsServer: WsServer) {
+    logger.info(`[ws] received: ${msg.type}`);
     switch (msg.type) {
       case 'project:create':
         this.handleProjectCreate(msg, send);
@@ -54,9 +57,14 @@ export class SessionManager {
       case 'permission:response':
         this.handlePermissionResponse(msg);
         break;
+      case 'pty:spawn':
+        this.handlePtySpawn(msg, send);
+        break;
       case 'pty:input':
+        this.handlePtyInput(msg);
+        break;
       case 'pty:resize':
-        // Phase 4
+        this.handlePtyResize(msg);
         break;
     }
   }
@@ -85,6 +93,7 @@ export class SessionManager {
       loading: false,
       permissionResolvers: new Map(),
       turns: 0,
+      ptyProcess: null,
     };
 
     this.sessions.set(project.id, session);
@@ -288,6 +297,71 @@ export class SessionManager {
     }
   }
 
+  private handlePtySpawn(
+    msg: { projectId: string; requestId: string },
+    send: (reply: DownstreamMessage) => void,
+  ) {
+    const session = this.sessions.get(msg.projectId);
+    if (!session) {
+      logger.warn(`[pty:spawn] no session for project ${msg.projectId}`);
+      return;
+    }
+
+    // Already spawned — just reply
+    if (session.ptyProcess) {
+      logger.info(`[pty:spawn] already spawned for ${msg.projectId}`);
+      send({ type: 'pty:spawned', projectId: msg.projectId, requestId: msg.requestId });
+      return;
+    }
+
+    const shell = process.env.SHELL || '/bin/zsh';
+    logger.info(`[pty:spawn] spawning ${shell} in ${session.project.cwd}, PATH=${process.env.PATH?.slice(0, 100)}`);
+
+    let ptyProc: pty.IPty;
+    try {
+      ptyProc = pty.spawn(shell, [], {
+        name: 'xterm-256color',
+        cols: 120,
+        rows: 30,
+        cwd: session.project.cwd,
+        env: { ...process.env } as Record<string, string>,
+      });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      logger.error(`[pty:spawn] failed: ${error}`);
+      send({ type: 'pty:exit', projectId: msg.projectId, exitCode: 1 });
+      return;
+    }
+
+    session.ptyProcess = ptyProc;
+    logger.info(`[pty:spawn] spawned pid=${ptyProc.pid}`);
+
+    ptyProc.onData((data: string) => {
+      send({ type: 'pty:output', projectId: msg.projectId, data });
+    });
+
+    ptyProc.onExit(({ exitCode }) => {
+      session.ptyProcess = null;
+      send({ type: 'pty:exit', projectId: msg.projectId, exitCode });
+    });
+
+    send({ type: 'pty:spawned', projectId: msg.projectId, requestId: msg.requestId });
+  }
+
+  private handlePtyInput(msg: { projectId: string; data: string }) {
+    const session = this.sessions.get(msg.projectId);
+    if (session?.ptyProcess) {
+      session.ptyProcess.write(msg.data);
+    }
+  }
+
+  private handlePtyResize(msg: { projectId: string; cols: number; rows: number }) {
+    const session = this.sessions.get(msg.projectId);
+    if (session?.ptyProcess) {
+      session.ptyProcess.resize(msg.cols, msg.rows);
+    }
+  }
+
   private broadcastStatus(projectId: string, wsServer: WsServer) {
     const session = this.sessions.get(projectId);
     if (!session) return;
@@ -310,6 +384,10 @@ export class SessionManager {
   dispose() {
     for (const session of this.sessions.values()) {
       session.backend.stop();
+      if (session.ptyProcess) {
+        session.ptyProcess.kill();
+        session.ptyProcess = null;
+      }
     }
     this.sessions.clear();
   }

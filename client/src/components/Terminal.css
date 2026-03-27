@@ -1,0 +1,14 @@
+.terminal-container {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #1e1e1e;
+}
+
+.terminal-container .xterm {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+}

@@ -30,6 +30,12 @@ export interface PermissionResponseMsg {
   result: { behavior: 'allow' } | { behavior: 'deny'; message: string };
 }
 
+export interface PtySpawnMsg {
+  type: 'pty:spawn';
+  projectId: string;
+  requestId: string;
+}
+
 export interface PtyInputMsg {
   type: 'pty:input';
   projectId: string;
@@ -70,6 +76,7 @@ export type UpstreamMessage =
   | AgentStopMsg
   | AgentCommandMsg
   | PermissionResponseMsg
+  | PtySpawnMsg
   | PtyInputMsg
   | PtyResizeMsg
   | ProjectCreateMsg
@@ -121,10 +128,22 @@ export interface PermissionRequestMsg {
   title?: string;
 }
 
+export interface PtySpawnedMsg {
+  type: 'pty:spawned';
+  projectId: string;
+  requestId: string;
+}
+
 export interface PtyOutputMsg {
   type: 'pty:output';
   projectId: string;
   data: string;
+}
+
+export interface PtyExitMsg {
+  type: 'pty:exit';
+  projectId: string;
+  exitCode: number;
 }
 
 export interface StatusUpdateMsg {
@@ -170,7 +189,9 @@ export type DownstreamMessage =
   | AgentDoneMsg
   | AgentErrorMsg
   | PermissionRequestMsg
+  | PtySpawnedMsg
   | PtyOutputMsg
+  | PtyExitMsg
   | StatusUpdateMsg
   | ProjectCreatedMsg
   | ProjectListResultMsg

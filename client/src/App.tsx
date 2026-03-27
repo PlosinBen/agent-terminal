@@ -7,6 +7,7 @@ import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
+import { Terminal } from './components/Terminal';
 import { loadKeybindings, matchesBinding, formatBinding } from './keybindings';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from './projects-storage';
 import type { ConfigUpdate } from './hooks/useProjects';
@@ -52,6 +53,7 @@ export function App() {
   });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [activeTab, setActiveTab] = useState<'agent' | 'terminal'>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [homePath, setHomePath] = useState('/');
 
@@ -212,6 +214,12 @@ export function App() {
         return;
       }
 
+      if (matchesBinding(e, keybindings.toggleTerminal)) {
+        e.preventDefault();
+        setActiveTab(t => t === 'agent' ? 'terminal' : 'agent');
+        return;
+      }
+
       if (matchesBinding(e, keybindings.closeProject)) {
         e.preventDefault();
         const pid = activeRef.current;
@@ -291,8 +299,26 @@ export function App() {
       <div className="main-area">
         {activeProjectId ? (
           <>
-            <MessageList messages={messages} loading={loading} />
-            <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
+            <div className="tab-bar">
+              <button
+                className={`tab-btn${activeTab === 'agent' ? ' active' : ''}`}
+                onClick={() => setActiveTab('agent')}
+              >Agent</button>
+              <button
+                className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
+                onClick={() => setActiveTab('terminal')}
+              >Terminal</button>
+            </div>
+            <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
+              <MessageList messages={messages} loading={loading} />
+              <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
+            </div>
+            <Terminal
+              projectId={activeProjectId}
+              visible={activeTab === 'terminal'}
+              send={send}
+              onMessage={onMessage}
+            />
             <StatusLine status={status} connected={connected} projectName={activeProject?.name} />
             {permissionReq && (
               <PermissionPopup req={permissionReq} onRespond={handlePermission} />
