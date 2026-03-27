@@ -39,18 +39,19 @@
 
 .folder-picker-filter {
   margin: 8px 16px;
-  padding: 6px 10px;
+  padding: 4px 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
-  outline: none;
+  line-height: 1.4;
 }
 
-.folder-picker-filter:focus {
-  border-color: #528bff;
+.folder-picker-filter-placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
 }
 
 .folder-picker-list {
@@ -58,6 +59,23 @@
   overflow-y: auto;
   padding: 0 8px 8px;
   min-height: 0;
+}
+
+.folder-picker-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.folder-picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.folder-picker-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.folder-picker-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .folder-picker-item {

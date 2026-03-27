@@ -20,8 +20,9 @@ export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const filterRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
   const requestFolder = useCallback((path: string) => {
     setLoading(true);
@@ -48,15 +49,18 @@ export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel 
     requestFolder(initialPath);
   }, [initialPath, requestFolder]);
 
-  // Focus filter input on mount
-  useEffect(() => {
-    filterRef.current?.focus();
-  }, []);
-
-  // Filtered entries
+  // Filtered entries — need a ref for the keydown handler
   const filtered = filter
     ? entries.filter(name => name.toLowerCase().includes(filter.toLowerCase()))
     : entries;
+  const filteredRef = useRef(filtered);
+  filteredRef.current = filtered;
+
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
+
+  const currentPathRef = useRef(currentPath);
+  currentPathRef.current = currentPath;
 
   // Scroll selected item into view
   useEffect(() => {
@@ -67,50 +71,72 @@ export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel 
     item?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(i => Math.max(0, i - 1));
-        break;
-
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(i => Math.min(filtered.length - 1, i + 1));
-        break;
-
-      case 'ArrowRight': {
-        e.preventDefault();
-        const entry = filtered[selectedIndex];
-        if (entry) {
-          requestFolder(currentPath + '/' + entry);
-        }
-        break;
-      }
-
-      case 'ArrowLeft':
-        e.preventDefault();
-        goUp();
-        break;
-
-      case 'Enter':
-        e.preventDefault();
-        onSelect(currentPath);
-        break;
-
-      case 'Escape':
-        e.preventDefault();
-        onCancel();
-        break;
-    }
-  };
-
-  const goUp = () => {
-    const parent = currentPath.replace(/\/[^/]+\/?$/, '') || '/';
-    if (parent !== currentPath) {
+  const goUp = useCallback(() => {
+    const parent = currentPathRef.current.replace(/\/[^/]+\/?$/, '') || '/';
+    if (parent !== currentPathRef.current) {
       requestFolder(parent);
     }
-  };
+  }, [requestFolder]);
+
+  // Global keydown — captures all keyboard input regardless of focus
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore if modifier keys are held (except shift for typing)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedIndex(i => Math.max(0, i - 1));
+          break;
+
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1));
+          break;
+
+        case 'ArrowRight': {
+          e.preventDefault();
+          const entry = filteredRef.current[selectedIndexRef.current];
+          if (entry) {
+            requestFolder(currentPathRef.current + '/' + entry);
+          }
+          break;
+        }
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          goUp();
+          break;
+
+        case 'Enter':
+          e.preventDefault();
+          onSelect(currentPathRef.current);
+          break;
+
+        case 'Escape':
+          e.preventDefault();
+          onCancel();
+          break;
+
+        case 'Backspace':
+          e.preventDefault();
+          setFilter(f => f.slice(0, -1));
+          break;
+
+        default:
+          // Single printable character → append to filter
+          if (e.key.length === 1) {
+            e.preventDefault();
+            setFilter(f => f + e.key);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [requestFolder, goUp, onSelect, onCancel]);
 
   // Reset selection when filter changes
   useEffect(() => {
@@ -121,20 +147,15 @@ export function FolderPicker({ send, onMessage, initialPath, onSelect, onCancel 
     <div className="folder-picker-overlay" onMouseDown={(e) => {
       if (e.target === e.currentTarget) onCancel();
     }}>
-      <div className="folder-picker" onKeyDown={handleKeyDown}>
+      <div className="folder-picker">
         <div className="folder-picker-header">
           <div className="folder-picker-title">Open Project</div>
           <div className="folder-picker-path">{currentPath}</div>
         </div>
 
-        <input
-          ref={filterRef}
-          className="folder-picker-filter"
-          type="text"
-          placeholder="Filter..."
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        />
+        <div className="folder-picker-filter">
+          {filter || <span className="folder-picker-filter-placeholder">Type to filter...</span>}
+        </div>
 
         {error && <div className="folder-picker-error">{error}</div>}
 

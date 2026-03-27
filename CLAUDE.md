@@ -56,3 +56,12 @@ npm start                   # builds server → launches electron
 - Server-side path resolution: support `~` prefix → `os.homedir()`
 - Dot-files sorted after normal entries in directory listings
 - Keep UI keyboard-driven: all major actions have shortcuts
+- Keybindings: configurable via `client/src/keybindings.ts`, `mod` = Cmd (macOS) / Ctrl (others), persisted in localStorage
+
+## TBD — Remote Connection Support
+
+- Client 和 Server 透過 WebSocket 通訊，架構上可支援遠端連線
+- 遠端模式下 Electron 不啟動本地 WS server，僅作為純 client shell
+- 需要連線管理層：Local（自動啟動）/ Remote（使用者輸入 host:port）
+- 支援 multi-remote：一個 client 可切換不同 server
+- 目前先專注本地模式，遠端功能待討論
