@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import os from 'os';
 
 export function registerIpcHandlers() {
@@ -17,5 +17,9 @@ export function registerIpcHandlers() {
       properties: ['openDirectory'],
     });
     return result.canceled ? null : result.filePaths[0];
+  });
+
+  ipcMain.on('reveal-in-finder', (_event, path: string) => {
+    shell.showItemInFolder(path);
   });
 }

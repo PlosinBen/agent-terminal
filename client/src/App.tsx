@@ -17,6 +17,7 @@ declare global {
     electronAPI?: {
       getWsPort: () => Promise<number>;
       getHomePath: () => Promise<string>;
+      revealInFinder: (path: string) => void;
     };
   }
 }
@@ -181,6 +182,27 @@ export function App() {
     return () => clearInterval(interval);
   }, [getState]);
 
+  const closeProject = useCallback((targetId: string) => {
+    const list = projectsRef.current;
+    const idx = list.findIndex(p => p.id === targetId);
+    removeProject(targetId);
+    const next = list.filter(p => p.id !== targetId);
+    setProjects(next);
+    persistProjects(next);
+    if (next.length > 0) {
+      if (activeRef.current === targetId) {
+        const nextIdx = Math.min(idx, next.length - 1);
+        setActiveProjectId(next[nextIdx]?.id ?? null);
+      }
+    } else {
+      setActiveProjectId(null);
+    }
+  }, [removeProject, persistProjects]);
+
+  const revealInFinder = useCallback((cwd: string) => {
+    window.electronAPI?.revealInFinder(cwd);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -223,26 +245,14 @@ export function App() {
       if (matchesBinding(e, keybindings.closeProject)) {
         e.preventDefault();
         const pid = activeRef.current;
-        if (!pid) return;
-        const list = projectsRef.current;
-        const idx = list.findIndex(p => p.id === pid);
-        removeProject(pid);
-        const next = list.filter(p => p.id !== pid);
-        setProjects(next);
-        persistProjects(next);
-        if (next.length > 0) {
-          const nextIdx = Math.min(idx, next.length - 1);
-          setActiveProjectId(next[nextIdx]?.id ?? null);
-        } else {
-          setActiveProjectId(null);
-        }
+        if (pid) closeProject(pid);
         return;
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [keybindings, openFolderPicker, removeProject]);
+  }, [keybindings, openFolderPicker, closeProject]);
 
   const activeState = getState(activeProjectId);
 
@@ -305,6 +315,8 @@ export function App() {
         onSelect={setActiveProjectId}
         onNew={openFolderPicker}
         onReorder={handleReorder}
+        onCloseProject={closeProject}
+        onRevealInFinder={window.electronAPI ? revealInFinder : undefined}
         newProjectShortcut={formatBinding(keybindings.newProject)}
       />
       <div className="main-area">

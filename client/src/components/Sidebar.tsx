@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { ContextMenu } from './ContextMenu';
 import './Sidebar.css';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -22,6 +23,8 @@ interface Props {
   onSelect: (id: string) => void;
   onNew: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
+  onCloseProject?: (id: string) => void;
+  onRevealInFinder?: (cwd: string) => void;
   newProjectShortcut?: string;
 }
 
@@ -35,9 +38,10 @@ function getStatusDisplay(p: ProjectInfo): { icon: string; color: string } | nul
   }
 }
 
-export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, newProjectShortcut }: Props) {
+export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, onCloseProject, onRevealInFinder, newProjectShortcut }: Props) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string; projectCwd: string } | null>(null);
 
   if (!visible) return null;
 
@@ -67,6 +71,10 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
               }}
               onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
               onClick={() => onSelect(p.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, projectId: p.id, projectCwd: p.cwd });
+              }}
             >
               <span
                 className="sidebar-status-dot"
@@ -87,6 +95,23 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
           + New {newProjectShortcut && <span className="sidebar-shortcut">{newProjectShortcut}</span>}
         </div>
       </div>
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={[
+            ...(onRevealInFinder ? [{
+              label: 'Reveal in Finder',
+              onClick: () => onRevealInFinder(contextMenu.projectCwd),
+            }] : []),
+            {
+              label: 'Close',
+              onClick: () => onCloseProject?.(contextMenu.projectId),
+            },
+          ]}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }
