@@ -30,6 +30,7 @@ export interface ConfigUpdate {
   model?: string;
   permissionMode?: string;
   effort?: string;
+  agentStatus?: 'idle' | 'running' | 'attention';
 }
 
 export function useProjects(

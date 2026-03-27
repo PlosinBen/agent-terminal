@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type KeyboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, type KeyboardEvent } from 'react';
 import './InputArea.css';
 
 interface Props {
@@ -10,6 +10,13 @@ interface Props {
 export function InputArea({ disabled, onSubmit, onStop }: Props) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Delay focus to avoid Electron Chromium injecting '\n' into textarea
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape' && disabled) {
@@ -40,7 +47,6 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
         placeholder={disabled ? 'Agent is running... (Esc to stop)' : 'Ask something...'}
         disabled={disabled}
         rows={1}
-        autoFocus
       />
     </div>
   );

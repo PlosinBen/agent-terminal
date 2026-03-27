@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ContextMenu } from './ContextMenu';
+import { getStatusDisplay } from '../utils/statusDisplay';
 import './Sidebar.css';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -26,16 +27,6 @@ interface Props {
   onCloseProject?: (id: string) => void;
   onRevealInFinder?: (cwd: string) => void;
   newProjectShortcut?: string;
-}
-
-function getStatusDisplay(p: ProjectInfo): { icon: string; color: string } | null {
-  if (p.connectionStatus === 'error') return { icon: '\u2715', color: '#e06c75' };  // ✕ red
-  if (p.connectionStatus !== 'connected') return { icon: '\u25CB', color: '#555' }; // ○ gray
-  switch (p.agentStatus) {
-    case 'idle':      return { icon: '\u25CF', color: '#98c379' }; // ● green
-    case 'running':   return { icon: '\u25CF', color: '#e5c07b' }; // ● yellow
-    case 'attention': return { icon: '?',      color: '#e06c75' }; // ? red
-  }
 }
 
 export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, onCloseProject, onRevealInFinder, newProjectShortcut }: Props) {

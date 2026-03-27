@@ -352,7 +352,7 @@ export function App() {
               send={send}
               onMessage={onMessage}
             />
-            <StatusLine status={status} connected={connected} projectName={activeProject?.name} />
+            <StatusLine status={status} project={activeProject} />
             {permissionReq && (
               <PermissionPopup req={permissionReq} onRespond={handlePermission} />
             )}

@@ -5,7 +5,7 @@ import type { AgentBackend, PermissionRequest } from './backend/types.js';
 import { createProject, type ProjectConfig } from './core/workspace.js';
 import { executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
-import { readdirSync } from 'fs';
+import { readdirSync, watch, existsSync, type FSWatcher } from 'fs';
 import path from 'path';
 import os from 'os';
 import { logger } from './core/logger.js';
@@ -18,6 +18,7 @@ interface ProjectSession {
   permissionResolvers: Map<string, (result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => void>;
   turns: number;
   ptyProcess: pty.IPty | null;
+  gitWatcher: FSWatcher | null;
 }
 
 function getGitBranch(cwd: string): string {
@@ -32,8 +33,10 @@ let permRequestCounter = 0;
 
 export class SessionManager {
   private sessions = new Map<string, ProjectSession>();
+  private wsServer: WsServer | null = null;
 
   handleMessage(msg: UpstreamMessage, send: (reply: DownstreamMessage) => void, wsServer: WsServer) {
+    this.wsServer = wsServer;
     logger.info(`[ws] received: ${msg.type}`);
     switch (msg.type) {
       case 'project:create':
@@ -94,9 +97,13 @@ export class SessionManager {
       permissionResolvers: new Map(),
       turns: 0,
       ptyProcess: null,
+      gitWatcher: null,
     };
 
     this.sessions.set(project.id, session);
+
+    // Watch .git/HEAD for branch changes
+    this.watchGitHead(project.id, project.cwd);
 
     // Update in-memory project config after backend init
     backend.onInit(() => {
@@ -106,6 +113,9 @@ export class SessionManager {
         permissionMode: backend.getPermissionMode(),
         effort: backend.getEffort(),
       };
+      if (this.wsServer) {
+        this.broadcastStatus(project.id, this.wsServer);
+      }
     });
 
     send({
@@ -113,6 +123,11 @@ export class SessionManager {
       requestId: msg.requestId,
       project: { id: project.id, name: project.name, cwd: project.cwd },
     });
+
+    // Send initial status (git branch, etc.) immediately
+    if (this.wsServer) {
+      this.broadcastStatus(project.id, this.wsServer);
+    }
   }
 
   private handleProjectList(msg: { requestId: string }, send: (reply: DownstreamMessage) => void) {
@@ -362,6 +377,35 @@ export class SessionManager {
     }
   }
 
+  private watchGitHead(projectId: string, cwd: string) {
+    const gitHeadPath = path.join(cwd, '.git', 'HEAD');
+    if (!existsSync(gitHeadPath)) return;
+
+    const session = this.sessions.get(projectId);
+    if (!session) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    try {
+      session.gitWatcher = watch(gitHeadPath, () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (this.wsServer) {
+            this.broadcastStatus(projectId, this.wsServer);
+          }
+        }, 100);
+      });
+
+      session.gitWatcher.on('error', (err) => {
+        logger.warn(`[git-watch] error for ${projectId}: ${err.message}`);
+        session.gitWatcher?.close();
+        session.gitWatcher = null;
+      });
+    } catch (err) {
+      logger.warn(`[git-watch] failed to watch ${gitHeadPath}: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   private broadcastStatus(projectId: string, wsServer: WsServer) {
     const session = this.sessions.get(projectId);
     if (!session) return;
@@ -384,6 +428,8 @@ export class SessionManager {
   dispose() {
     for (const session of this.sessions.values()) {
       session.backend.stop();
+      session.gitWatcher?.close();
+      session.gitWatcher = null;
       if (session.ptyProcess) {
         session.ptyProcess.kill();
         session.ptyProcess = null;
