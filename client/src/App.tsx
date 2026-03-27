@@ -138,7 +138,9 @@ export function App() {
     });
     setActiveProjectId(id);
 
-    // connectProject will be triggered by lazy connect effect
+    // Connect immediately since user explicitly created this project
+    // Use setTimeout to let state update first
+    setTimeout(() => connectProject(p), 0);
   }, [connectProject, persistProjects]);
 
   // Open folder picker
@@ -152,8 +154,8 @@ export function App() {
     setShowFolderPicker(true);
   }, [connected]);
 
-  // Lazy connect: when active project changes, connect if needed
-  useEffect(() => {
+  // Connect the active project explicitly
+  const connectActiveProject = useCallback(() => {
     if (!connected || !activeProjectId) return;
     const project = projectsRef.current.find(p => p.id === activeProjectId);
     if (project && project.connectionStatus === 'disconnected') {
@@ -320,18 +322,25 @@ export function App() {
         newProjectShortcut={formatBinding(keybindings.newProject)}
       />
       <div className="main-area">
-        {activeProjectId ? (
+        {activeProject && (
+          <div className="tab-bar">
+            <span className="tab-bar-project-name">{activeProject.name}</span>
+            {activeProject.connectionStatus !== 'disconnected' && (
+              <>
+                <button
+                  className={`tab-btn${activeTab === 'agent' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('agent')}
+                >Agent</button>
+                <button
+                  className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
+                  onClick={() => setActiveTab('terminal')}
+                >Terminal</button>
+              </>
+            )}
+          </div>
+        )}
+        {activeProjectId && activeProject?.connectionStatus !== 'disconnected' ? (
           <>
-            <div className="tab-bar">
-              <button
-                className={`tab-btn${activeTab === 'agent' ? ' active' : ''}`}
-                onClick={() => setActiveTab('agent')}
-              >Agent</button>
-              <button
-                className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
-                onClick={() => setActiveTab('terminal')}
-              >Terminal</button>
-            </div>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
               <MessageList messages={messages} loading={loading} />
               <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
@@ -348,6 +357,16 @@ export function App() {
               <PermissionPopup req={permissionReq} onRespond={handlePermission} />
             )}
           </>
+        ) : activeProjectId && activeProject?.connectionStatus === 'disconnected' ? (
+          <div
+            className="empty-state connect-prompt"
+            onClick={connectActiveProject}
+            onKeyDown={(e) => { if (e.key === 'Enter') connectActiveProject(); }}
+            tabIndex={0}
+            ref={(el) => el?.focus()}
+          >
+            Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong>
+          </div>
         ) : (
           <div className="empty-state">
             {connected ? `Press ${formatBinding(keybindings.newProject)} to open a project` : 'Connecting...'}

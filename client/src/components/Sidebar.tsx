@@ -47,7 +47,10 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
 
   return (
     <div className="sidebar">
-      <div className="sidebar-header">Projects</div>
+      <div className="sidebar-header">
+        <span>Projects</span>
+        <button className="sidebar-add-btn" onClick={onNew} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
+      </div>
       <div className="sidebar-list">
         {projects.map((p, i) => {
           const status = getStatusDisplay(p);
@@ -82,18 +85,16 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
               >
                 {status?.icon ?? '\u00A0'}
               </span>
-              <span className="sidebar-item-name" title={p.cwd}>{p.name}</span>
+              <div className="sidebar-item-text">
+                <span className="sidebar-item-name">{p.name}</span>
+                <span className="sidebar-item-folder" title={p.cwd}>{p.cwd.split('/').pop()}</span>
+              </div>
             </div>
           );
         })}
         {projects.length === 0 && (
           <div className="sidebar-empty">No projects</div>
         )}
-      </div>
-      <div className="sidebar-footer">
-        <div className="sidebar-new-btn" onClick={onNew}>
-          + New {newProjectShortcut && <span className="sidebar-shortcut">{newProjectShortcut}</span>}
-        </div>
       </div>
       {contextMenu && (
         <ContextMenu

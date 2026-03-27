@@ -60,10 +60,28 @@ body {
 
 .tab-bar {
   display: flex;
+  align-items: center;
   gap: 0;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
   flex-shrink: 0;
+}
+
+.tab-bar-project-name {
+  padding: 6px 12px;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.tab-bar-project-name:not(:last-child) {
+  margin-right: 4px;
+  border-right: 1px solid var(--border);
 }
 
 .tab-btn {
@@ -99,4 +117,18 @@ body {
   justify-content: center;
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+.connect-prompt {
+  cursor: pointer;
+  outline: none;
+}
+
+.connect-prompt:hover,
+.connect-prompt:focus-visible {
+  color: var(--text-primary);
+}
+
+.connect-prompt strong {
+  color: var(--accent);
 }
