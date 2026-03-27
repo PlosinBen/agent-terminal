@@ -5,6 +5,9 @@ import type { AgentBackend, PermissionRequest } from './backend/types.js';
 import { createProject, saveProject, listProjects, type ProjectConfig } from './core/workspace.js';
 import { executeCommand } from './core/commands.js';
 import { execSync } from 'child_process';
+import { readdirSync } from 'fs';
+import path from 'path';
+import os from 'os';
 import { logger } from './core/logger.js';
 
 interface ProjectSession {
@@ -35,6 +38,9 @@ export class SessionManager {
         break;
       case 'project:list':
         this.handleProjectList(msg, send);
+        break;
+      case 'folder:list':
+        this.handleFolderList(msg, send);
         break;
       case 'agent:query':
         this.handleAgentQuery(msg, send, wsServer);
@@ -99,6 +105,41 @@ export class SessionManager {
       requestId: msg.requestId,
       projects: projects.map(p => ({ id: p.id, name: p.name, cwd: p.cwd })),
     });
+  }
+
+  private handleFolderList(msg: { path: string; requestId: string }, send: (reply: DownstreamMessage) => void) {
+    try {
+      // Resolve ~ to home directory
+      const resolvedPath = msg.path.startsWith('~')
+        ? path.join(os.homedir(), msg.path.slice(1))
+        : path.resolve(msg.path);
+
+      const entries = readdirSync(resolvedPath, { withFileTypes: true })
+        .filter(e => e.isDirectory())
+        .map(e => e.name)
+        .sort((a, b) => {
+          // dot-files after normal entries
+          const aDot = a.startsWith('.');
+          const bDot = b.startsWith('.');
+          if (aDot !== bDot) return aDot ? 1 : -1;
+          return a.localeCompare(b);
+        });
+
+      send({
+        type: 'folder:list_result',
+        requestId: msg.requestId,
+        path: resolvedPath,
+        entries,
+      });
+    } catch (err) {
+      send({
+        type: 'folder:list_result',
+        requestId: msg.requestId,
+        path: msg.path,
+        entries: [],
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   private async handleAgentQuery(

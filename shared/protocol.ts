@@ -54,6 +54,12 @@ export interface ProjectListMsg {
   requestId: string;
 }
 
+export interface FolderListMsg {
+  type: 'folder:list';
+  path: string;
+  requestId: string;
+}
+
 export type UpstreamMessage =
   | AgentQueryMsg
   | AgentStopMsg
@@ -62,7 +68,8 @@ export type UpstreamMessage =
   | PtyInputMsg
   | PtyResizeMsg
   | ProjectCreateMsg
-  | ProjectListMsg;
+  | ProjectListMsg
+  | FolderListMsg;
 
 // ── Main → Renderer ──
 
@@ -132,6 +139,14 @@ export interface ProjectListResultMsg {
   projects: { id: string; name: string; cwd: string }[];
 }
 
+export interface FolderListResultMsg {
+  type: 'folder:list_result';
+  requestId: string;
+  path: string;
+  entries: string[];
+  error?: string;
+}
+
 export interface CommandResultMsg {
   type: 'command:result';
   projectId: string;
@@ -151,4 +166,5 @@ export type DownstreamMessage =
   | StatusUpdateMsg
   | ProjectCreatedMsg
   | ProjectListResultMsg
+  | FolderListResultMsg
   | CommandResultMsg;

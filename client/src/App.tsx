@@ -6,12 +6,12 @@ import { MessageList } from './components/MessageList';
 import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
+import { FolderPicker } from './components/FolderPicker';
 
 declare global {
   interface Window {
     electronAPI?: {
       getWsPort: () => Promise<number>;
-      selectFolder: () => Promise<string | null>;
       getHomePath: () => Promise<string>;
     };
   }
@@ -26,43 +26,39 @@ export function App() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [homePath, setHomePath] = useState('/');
 
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
   const activeRef = useRef(activeProjectId);
   activeRef.current = activeProjectId;
 
-  // Connect to WS on mount
+  // Connect to WS on mount + fetch home path
   useEffect(() => {
     const init = async () => {
       const port = window.electronAPI
         ? await window.electronAPI.getWsPort()
         : 9100;
       connect(port);
+
+      if (window.electronAPI) {
+        const home = await window.electronAPI.getHomePath();
+        setHomePath(home);
+      }
     };
     init();
   }, [connect]);
 
-  // Create a new project
-  const createProject = useCallback(async () => {
-    let cwd: string | null = null;
-
-    if (window.electronAPI) {
-      cwd = await window.electronAPI.selectFolder();
-      if (!cwd) {
-        cwd = await window.electronAPI.getHomePath();
-      }
-    }
-
-    if (!cwd) cwd = '/tmp';
-
+  // Create project with a given cwd
+  const createProjectWithCwd = useCallback((cwd: string) => {
     const requestId = `req_${++requestCounter}`;
     const unsub = onMessage((msg) => {
       if (msg.type === 'project:created' && msg.requestId === requestId) {
         const p: ProjectInfo = {
           id: msg.project.id,
-          name: msg.project.name ?? cwd!.split('/').pop() ?? 'project',
-          cwd: cwd!,
+          name: msg.project.name ?? cwd.split('/').pop() ?? 'project',
+          cwd,
           agentStatus: 'idle',
         };
         setProjects(prev => [...prev, p]);
@@ -75,11 +71,16 @@ export function App() {
     send({ type: 'project:create', cwd, requestId });
   }, [send, onMessage, initProject]);
 
-  // Auto-create first project on connect
+  // Open folder picker
+  const openFolderPicker = useCallback(() => {
+    setShowFolderPicker(true);
+  }, []);
+
+  // Auto-open folder picker on first connect
   useEffect(() => {
     if (!connected || projectsRef.current.length > 0) return;
-    createProject();
-  }, [connected, createProject]);
+    setShowFolderPicker(true);
+  }, [connected]);
 
   // Sync agent status from project state back to sidebar
   useEffect(() => {
@@ -115,7 +116,7 @@ export function App() {
       // Ctrl+O: new project
       if (e.ctrlKey && e.key === 'o') {
         e.preventDefault();
-        createProject();
+        openFolderPicker();
         return;
       }
 
@@ -154,7 +155,7 @@ export function App() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [createProject, removeProject]);
+  }, [openFolderPicker, removeProject]);
 
   const activeState = getState(activeProjectId);
 
@@ -205,7 +206,7 @@ export function App() {
         activeProjectId={activeProjectId}
         visible={sidebarVisible}
         onSelect={setActiveProjectId}
-        onNew={createProject}
+        onNew={openFolderPicker}
       />
       <div className="main-area">
         {activeProjectId ? (
@@ -223,6 +224,18 @@ export function App() {
           </div>
         )}
       </div>
+      {showFolderPicker && (
+        <FolderPicker
+          send={send}
+          onMessage={onMessage}
+          initialPath={homePath}
+          onSelect={(folderPath) => {
+            setShowFolderPicker(false);
+            createProjectWithCwd(folderPath);
+          }}
+          onCancel={() => setShowFolderPicker(false)}
+        />
+      )}
     </div>
   );
 }
