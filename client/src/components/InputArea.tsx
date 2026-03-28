@@ -32,8 +32,22 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
         onSubmit(trimmed);
         setInput('');
       }
+      // Keep focus on textarea after submit
+      requestAnimationFrame(() => textareaRef.current?.focus());
     }
   }, [input, disabled, onSubmit, onStop]);
+
+  // Re-focus textarea when clicking anywhere outside it
+  useEffect(() => {
+    const handleWindowClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't steal focus from interactive elements (buttons, inputs, etc.)
+      if (target.closest('.sidebar, .folder-picker, .permission-popup, .tab-bar')) return;
+      textareaRef.current?.focus();
+    };
+    window.addEventListener('mouseup', handleWindowClick);
+    return () => window.removeEventListener('mouseup', handleWindowClick);
+  }, []);
 
   return (
     <div className={`input-area ${disabled ? 'input-disabled' : ''}`}>
