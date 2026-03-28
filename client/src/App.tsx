@@ -94,11 +94,10 @@ export function App() {
 
     if (service.isConnected(host)) {
       setLocalConnected(true);
+      service.getServerInfo(host).then(info => {
+        setHomePath(info.homePath);
+      }).catch(() => {});
     }
-
-    service.getServerInfo(host).then(info => {
-      setHomePath(info.homePath);
-    }).catch(() => {});
 
     return () => {
       service.releaseConnection(host);
@@ -142,6 +141,11 @@ export function App() {
       // Track local server connected state for the empty-state UI
       if (ev.host === useServerStore.getState().localHost) {
         setLocalConnected(ev.status === 'connected');
+        if (ev.status === 'connected') {
+          service.getServerInfo(ev.host).then(info => {
+            setHomePath(info.homePath);
+          }).catch(() => {});
+        }
       }
 
       if (ev.status === 'reconnecting') {
