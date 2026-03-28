@@ -18,6 +18,14 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
     });
   }, []);
 
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape' && disabled) {
       e.preventDefault();
@@ -32,8 +40,6 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
         onSubmit(trimmed);
         setInput('');
       }
-      // Keep focus on textarea after submit
-      requestAnimationFrame(() => textareaRef.current?.focus());
     }
   }, [input, disabled, onSubmit, onStop]);
 
@@ -41,7 +47,6 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
   useEffect(() => {
     const handleWindowClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Don't steal focus from interactive elements (buttons, inputs, etc.)
       if (target.closest('.sidebar, .folder-picker, .permission-popup, .tab-bar')) return;
       textareaRef.current?.focus();
     };
@@ -50,7 +55,7 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
   }, []);
 
   return (
-    <div className={`input-area ${disabled ? 'input-disabled' : ''}`}>
+    <div className="input-area">
       <span className="input-prompt">&gt;</span>
       <textarea
         ref={textareaRef}
@@ -59,7 +64,6 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={disabled ? 'Agent is running... (Esc to stop)' : 'Ask something...'}
-        disabled={disabled}
         rows={1}
       />
     </div>
