@@ -167,12 +167,19 @@ export interface PtyExitMsg {
   exitCode: number;
 }
 
+export interface ProviderConfig {
+  models: { value: string; displayName: string; description: string }[];
+  permissionModes: string[];
+  effortLevels: string[];
+}
+
 export interface StatusUpdateMsg {
   type: 'status:update';
   projectId: string;
   segments: { label?: string; value: string; color?: string }[];
   agentStatus: 'idle' | 'running' | 'attention';
   gitBranch: string;
+  providerConfig?: ProviderConfig;
 }
 
 export interface ProjectCreatedMsg {

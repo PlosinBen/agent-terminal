@@ -1,10 +1,11 @@
-import type { DownstreamMessage } from '../shared/protocol.js';
+import type { DownstreamMessage, ProviderConfig } from '../shared/protocol.js';
 import type { WsServer } from '../ws-server.js';
 import type { ProjectSession } from '../session-manager.js';
 import { execSync } from 'child_process';
 import { watch, existsSync } from 'fs';
 import path from 'path';
 import { logger } from '../core/logger.js';
+import { loadProviderCache } from '../core/provider-cache.js';
 
 export function getGitBranch(cwd: string): string {
   try {
@@ -52,11 +53,17 @@ export function broadcastStatus(
       ? 'running' as const
       : 'idle' as const;
 
+  const cache = loadProviderCache('claude');
+  const providerConfig: ProviderConfig | undefined = cache
+    ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels }
+    : undefined;
+
   wsServer.broadcast({
     type: 'status:update',
     projectId,
     segments: session.backend.getStatusSegments(),
     agentStatus,
     gitBranch: getGitBranch(session.project.cwd),
+    providerConfig,
   });
 }

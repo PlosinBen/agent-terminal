@@ -15,6 +15,12 @@ export interface StatusInfo {
   gitBranch: string;
 }
 
+export interface ProviderConfig {
+  models: { value: string; displayName: string; description: string }[];
+  permissionModes: string[];
+  effortLevels: string[];
+}
+
 export interface PermissionReq {
   requestId: string;
   toolName: string;

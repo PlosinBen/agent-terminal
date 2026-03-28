@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DownstreamMessage } from '@shared/protocol';
-import type { Message, StatusInfo, PermissionReq } from '../types/message';
+import type { Message, StatusInfo, PermissionReq, ProviderConfig } from '../types/message';
 import type { AgentService } from '../service/agent-service';
 import { ServiceEvent } from '../service/types';
 
@@ -9,6 +9,7 @@ export interface ProjectState {
   loading: boolean;
   status: StatusInfo;
   permissionReq: PermissionReq | null;
+  providerConfig: ProviderConfig | null;
 }
 
 const DEFAULT_STATUS: StatusInfo = {
@@ -23,6 +24,7 @@ function createProjectState(): ProjectState {
     loading: false,
     status: { ...DEFAULT_STATUS },
     permissionReq: null,
+    providerConfig: null,
   };
 }
 
@@ -177,6 +179,9 @@ export function useProjects(
           agentStatus: msg.agentStatus,
           gitBranch: msg.gitBranch,
         };
+        if (msg.providerConfig) {
+          state.providerConfig = msg.providerConfig;
+        }
         onConfigUpdate?.({ projectId: pid, agentStatus: msg.agentStatus });
         rerender();
         break;
