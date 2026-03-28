@@ -13,7 +13,9 @@ export type Action =
   | 'closeProject'
   | 'prevProject'
   | 'nextProject'
-  | 'toggleTerminal';
+  | 'toggleTerminal'
+  | 'nextTab'
+  | 'prevTab';
 
 export type KeybindingConfig = Record<Action, string>;
 
@@ -24,6 +26,8 @@ const DEFAULTS: KeybindingConfig = {
   prevProject: 'mod+ArrowUp',
   nextProject: 'mod+ArrowDown',
   toggleTerminal: 'mod+`',
+  nextTab: 'mod+ArrowRight',
+  prevTab: 'mod+ArrowLeft',
 };
 
 const STORAGE_KEY = 'agent-terminal:keybindings';

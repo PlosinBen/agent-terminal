@@ -256,6 +256,8 @@ export function App() {
       setActiveProjectId(id);
     },
     [keybindings.toggleTerminal]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
+    [keybindings.nextTab]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
+    [keybindings.prevTab]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
     [keybindings.closeProject]: () => {
       const pid = activeRef.current;
       if (pid) closeProject(pid);

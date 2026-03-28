@@ -13,12 +13,10 @@ interface Props {
 export function Terminal({ project, visible, service }: Props) {
   const { containerRef, hasOutput, connected } = useTerminal(project, visible, service);
 
-  if (!visible) return null;
-
-  const showPlaceholder = !hasOutput;
+  const showPlaceholder = visible && !hasOutput;
 
   return (
-    <>
+    <div style={{ display: visible ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {showPlaceholder && (
         <div className="terminal-placeholder">
           {!connected ? 'Connecting to server...' : 'Starting terminal...'}
@@ -29,6 +27,6 @@ export function Terminal({ project, visible, service }: Props) {
         className="terminal-container"
         style={{ display: showPlaceholder ? 'none' : undefined }}
       />
-    </>
+    </div>
   );
 }
