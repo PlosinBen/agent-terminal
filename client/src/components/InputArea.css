@@ -36,6 +36,21 @@
   color: var(--text-secondary);
 }
 
+/* ── Esc hint ── */
+
+.esc-hint {
+  position: absolute;
+  top: -24px;
+  left: 12px;
+  font-size: 0.8em;
+  color: #e5c07b;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  padding: 2px 8px;
+}
+
 /* ── Image badge ── */
 
 .image-badge {

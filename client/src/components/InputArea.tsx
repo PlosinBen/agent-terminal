@@ -16,6 +16,9 @@ interface Props {
 export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onCommand }: Props) {
   const [input, setInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [escPending, setEscPending] = useState(false);
+  const escPendingRef = useRef(false);
+  const escTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Popup state
@@ -47,6 +50,18 @@ export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onC
       textareaRef.current?.focus();
     });
   }, []);
+
+  // Reset escPending when agent stops
+  useEffect(() => {
+    if (!disabled) {
+      escPendingRef.current = false;
+      setEscPending(false);
+      if (escTimerRef.current) {
+        clearTimeout(escTimerRef.current);
+        escTimerRef.current = null;
+      }
+    }
+  }, [disabled]);
 
   // Auto-resize textarea to fit content
   useEffect(() => {
@@ -144,7 +159,19 @@ export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onC
       }
       if (disabled) {
         e.preventDefault();
-        onStop();
+        if (escPendingRef.current) {
+          if (escTimerRef.current) clearTimeout(escTimerRef.current);
+          escPendingRef.current = false;
+          setEscPending(false);
+          onStop();
+        } else {
+          escPendingRef.current = true;
+          setEscPending(true);
+          escTimerRef.current = setTimeout(() => {
+            escPendingRef.current = false;
+            setEscPending(false);
+          }, 1500);
+        }
         return;
       }
     }
@@ -237,6 +264,9 @@ export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onC
           options={selectedCommand?.options}
           onSelect={handlePopupSelect}
         />
+      )}
+      {escPending && (
+        <div className="esc-hint">Press Esc again to stop agent</div>
       )}
       {images.length > 0 && (
         <div className="image-badge">
