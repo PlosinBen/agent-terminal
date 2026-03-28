@@ -22,12 +22,16 @@ export class ConnectionManager {
 
   /** Acquire a connection to a host. Creates if needed, increments ref count. */
   acquire(host: string): void {
-    let entry = this.pool.get(host);
+    const entry = this.pool.get(host);
     if (entry) {
       entry.refCount++;
+      if (!entry.ws) {
+        // Re-acquire after release — reconnect
+        this.connect(host, entry);
+      }
       return;
     }
-    entry = {
+    const newEntry: PoolEntry = {
       ws: null,
       refCount: 1,
       handlers: new Set(),
@@ -36,18 +40,23 @@ export class ConnectionManager {
       lastDelay: 0,
       retryCount: 0,
     };
-    this.pool.set(host, entry);
-    this.connect(host, entry);
+    this.pool.set(host, newEntry);
+    this.connect(host, newEntry);
   }
 
-  /** Release a connection. Decrements ref count, closes if 0. */
+  /** Release a connection. Decrements ref count, closes WS if 0 but keeps entry for re-acquire. */
   release(host: string): void {
     const entry = this.pool.get(host);
     if (!entry) return;
     entry.refCount--;
     if (entry.refCount <= 0) {
-      this.cleanup(host, entry);
-      this.pool.delete(host);
+      if (entry.reconnectTimer) {
+        clearTimeout(entry.reconnectTimer);
+        entry.reconnectTimer = null;
+      }
+      entry.ws?.close();
+      entry.ws = null;
+      // Keep entry in pool (with handlers/statusListeners) so re-acquire works
     }
   }
 
