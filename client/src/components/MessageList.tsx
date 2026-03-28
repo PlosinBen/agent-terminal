@@ -1,5 +1,8 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { Message } from '../types/message';
+import { MarkdownBlock } from './messages/MarkdownBlock';
+import { ThinkingBlock } from './messages/ThinkingBlock';
+import { ToolCallBlock } from './messages/ToolCallBlock';
 import './MessageList.css';
 
 interface Props {
@@ -7,57 +10,118 @@ interface Props {
   loading: boolean;
 }
 
-function CollapsibleMessage({ msg }: { msg: Message }) {
-  const [expanded, setExpanded] = useState(!msg.collapsible);
+interface Turn {
+  user?: { msg: Message; index: number };
+  responses: { msg: Message; index: number }[];
+}
 
-  if (msg.collapsible && !expanded) {
-    const lines = msg.content.split('\n').length;
-    const label = msg.messageType === 'tool_use' ? `Tool: ${msg.toolName}` : 'Details';
-    return (
-      <div className="msg msg-collapsed" onClick={() => setExpanded(true)}>
-        <span className="msg-toggle">▸ {label} ({lines} lines) [click to expand]</span>
-      </div>
-    );
-  }
+function groupIntoTurns(messages: Message[]): Turn[] {
+  const turns: Turn[] = [];
+  let current: Turn | null = null;
 
-  const roleClass = msg.role === 'user' ? 'msg-user'
-    : msg.role === 'system' ? 'msg-system'
-    : msg.messageType === 'tool_use' ? 'msg-tool'
-    : msg.messageType === 'result' ? 'msg-result'
-    : 'msg-assistant';
+  messages.forEach((msg, i) => {
+    if (msg.role === 'user') {
+      current = { user: { msg, index: i }, responses: [] };
+      turns.push(current);
+    } else {
+      if (!current) {
+        current = { responses: [] };
+        turns.push(current);
+      }
+      current.responses.push({ msg, index: i });
+    }
+  });
 
-  const roleLabel = msg.role === 'user' ? 'You'
-    : msg.role === 'system' ? 'System'
-    : msg.messageType === 'tool_use' ? `Tool: ${msg.toolName}`
-    : msg.messageType === 'result' ? 'Result'
-    : 'Agent';
-
-  return (
-    <div className={`msg ${roleClass}`}>
-      {msg.collapsible && (
-        <span className="msg-toggle" onClick={() => setExpanded(false)}>▾ </span>
-      )}
-      <span className="msg-label">{roleLabel}:</span>
-      <span className="msg-content">{msg.content}</span>
-    </div>
-  );
+  return turns;
 }
 
 export function MessageList({ messages, loading }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const toggle = useCallback((index: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const turns = useMemo(() => groupIntoTurns(messages), [messages]);
+
+  function renderMessage(msg: Message, i: number) {
+    switch (msg.messageType) {
+      case 'thinking':
+        return (
+          <div key={i} className="msg">
+            <ThinkingBlock
+              content={msg.content}
+              collapsed={!expanded.has(i)}
+              onToggle={() => toggle(i)}
+            />
+          </div>
+        );
+
+      case 'tool_use':
+        return (
+          <div key={i} className="msg">
+            <ToolCallBlock
+              msg={msg}
+              collapsed={!expanded.has(i)}
+              onToggle={() => toggle(i)}
+            />
+          </div>
+        );
+
+      default: {
+        if (msg.role === 'assistant') {
+          return (
+            <div key={i} className="msg msg-assistant">
+              <MarkdownBlock content={msg.content} />
+            </div>
+          );
+        }
+
+        // system / error
+        const isError = msg.messageType === 'error';
+        return (
+          <div key={i} className={`msg ${isError ? 'msg-error' : 'msg-system'}`}>
+            <span className="msg-label">{isError ? 'Error' : 'System'}:</span>
+            <span className="msg-content">{msg.content}</span>
+          </div>
+        );
+      }
+    }
+  }
+
   return (
     <div className="message-list">
-      {messages.map((msg, i) => (
-        <CollapsibleMessage key={i} msg={msg} />
+      {turns.map((turn, ti) => (
+        <div key={ti} className="turn">
+          {turn.user && (
+            <div className="msg msg-user">
+              <span className="msg-content">{turn.user.msg.content}</span>
+            </div>
+          )}
+          {turn.responses.length > 0 && (
+            <div className="turn-agent">
+              {turn.responses.map(({ msg, index }) => renderMessage(msg, index))}
+            </div>
+          )}
+        </div>
       ))}
       {loading && (
-        <div className="msg msg-loading">
-          <span className="spinner" /> Agent is thinking...
+        <div className="turn">
+          <div className="turn-agent">
+            <div className="msg msg-loading">
+              <span className="spinner" /> Agent is thinking...
+            </div>
+          </div>
         </div>
       )}
       <div ref={bottomRef} />

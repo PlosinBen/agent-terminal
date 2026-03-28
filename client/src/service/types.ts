@@ -5,6 +5,7 @@ import type { DownstreamMessage } from '@shared/protocol';
 export const ServiceEvent = {
   // Agent streaming events (keyed by projectId)
   AgentText: 'agent:text',
+  AgentThinking: 'agent:thinking',
   AgentToolUse: 'agent:tool_use',
   AgentResult: 'agent:result',
   AgentDone: 'agent:done',

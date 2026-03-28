@@ -1,0 +1,57 @@
+.thinking-block {
+  margin: 4px 0;
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.thinking-header:hover {
+  color: var(--text-primary);
+}
+
+.thinking-chevron {
+  font-size: 10px;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.thinking-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.thinking-label {
+  font-weight: bold;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.thinking-preview {
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.thinking-content {
+  margin: 4px 0 4px 16px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+}

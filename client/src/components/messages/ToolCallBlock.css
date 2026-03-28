@@ -1,0 +1,166 @@
+.tool-block {
+  margin: 4px 0;
+  border-left: 2px solid var(--border);
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tool-header:hover {
+  background: var(--bg-tertiary);
+}
+
+.tool-header-static {
+  cursor: default;
+}
+
+.tool-chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.tool-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.tool-name {
+  font-weight: bold;
+  color: #c678dd;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tool-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ── Tool Content ── */
+
+.tool-content {
+  padding: 4px 12px 8px;
+}
+
+.tool-file-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.tool-code {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tool-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* ── Diff ── */
+
+.tool-diff {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.diff-line {
+  display: flex;
+  padding: 0 8px;
+  min-height: 20px;
+  line-height: 20px;
+}
+
+.diff-del {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+.diff-del .diff-sign {
+  color: #ef4444;
+}
+
+.diff-add {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+}
+
+.diff-add .diff-sign {
+  color: #22c55e;
+}
+
+.diff-sign {
+  width: 16px;
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.diff-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.diff-truncated {
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Todo ── */
+
+.tool-todo-list {
+  font-size: 12px;
+}
+
+.tool-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.tool-todo-check {
+  flex-shrink: 0;
+}
+
+.tool-todo-completed {
+  color: #98c379;
+}
+
+.tool-todo-in_progress {
+  color: var(--accent);
+}
+
+.tool-todo-pending {
+  color: var(--text-secondary);
+}

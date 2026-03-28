@@ -79,12 +79,40 @@ export function useProjects(
         break;
       }
 
+      case 'agent:thinking': {
+        // Search backwards for last thinking block in this turn
+        // (skip over tool_use messages between thinking blocks)
+        let thinkingIdx = -1;
+        for (let j = state.messages.length - 1; j >= 0; j--) {
+          const m = state.messages[j];
+          if (m.messageType === 'thinking') { thinkingIdx = j; break; }
+          if (m.messageType !== 'tool_use') break;
+        }
+        if (thinkingIdx >= 0) {
+          state.messages[thinkingIdx] = {
+            ...state.messages[thinkingIdx],
+            content: state.messages[thinkingIdx].content + msg.content,
+          };
+        } else {
+          state.messages.push({
+            role: 'assistant',
+            content: msg.content,
+            messageType: 'thinking',
+            collapsible: true,
+          });
+        }
+        rerender();
+        break;
+      }
+
       case 'agent:tool_use':
         state.messages.push({
           role: 'assistant',
           content: msg.content,
           messageType: 'tool_use',
           toolName: msg.toolName,
+          toolUseId: msg.toolUseId,
+          toolInput: msg.toolInput,
           collapsible: true,
         });
         rerender();
@@ -157,6 +185,7 @@ export function useProjects(
   useEffect(() => {
     const unsubs = [
       service.on(ServiceEvent.AgentText, handleMsg),
+      service.on(ServiceEvent.AgentThinking, handleMsg),
       service.on(ServiceEvent.AgentToolUse, handleMsg),
       service.on(ServiceEvent.AgentResult, handleMsg),
       service.on(ServiceEvent.AgentDone, handleMsg),

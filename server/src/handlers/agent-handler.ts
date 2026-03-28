@@ -41,11 +41,15 @@ export async function handleAgentQuery(
     for await (const agentMsg of gen) {
       if (agentMsg.type === 'text') {
         send({ type: 'agent:text', projectId: msg.projectId, content: agentMsg.content });
+      } else if (agentMsg.type === 'thinking') {
+        send({ type: 'agent:thinking', projectId: msg.projectId, content: agentMsg.content });
       } else if (agentMsg.type === 'tool_use') {
         send({
           type: 'agent:tool_use',
           projectId: msg.projectId,
           toolName: agentMsg.toolName || 'unknown',
+          toolUseId: agentMsg.toolUseId || '',
+          toolInput: agentMsg.toolInput || {},
           content: agentMsg.content,
         });
       } else if (agentMsg.type === 'result') {

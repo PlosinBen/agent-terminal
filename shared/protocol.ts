@@ -97,10 +97,18 @@ export interface AgentTextMsg {
   content: string;
 }
 
+export interface AgentThinkingMsg {
+  type: 'agent:thinking';
+  projectId: string;
+  content: string;
+}
+
 export interface AgentToolUseMsg {
   type: 'agent:tool_use';
   projectId: string;
   toolName: string;
+  toolUseId: string;
+  toolInput: Record<string, unknown>;
   content: string;
 }
 
@@ -197,6 +205,7 @@ export interface CommandResultMsg {
 
 export type DownstreamMessage =
   | AgentTextMsg
+  | AgentThinkingMsg
   | AgentToolUseMsg
   | AgentResultMsg
   | AgentDoneMsg
