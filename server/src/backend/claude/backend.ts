@@ -82,13 +82,17 @@ export class ClaudeBackend implements AgentBackend {
   private createSdkQuery(prompt: string, opts?: { cwd?: string }): Query {
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (!this.permissionHandler) {
-        return { behavior: 'allow' as const };
+        return { behavior: 'allow' as const, updatedInput: input };
       }
-      return this.permissionHandler({
+      const result = await this.permissionHandler({
         toolName,
         input,
         title: options.title,
       });
+      if (result.behavior === 'allow') {
+        return { behavior: 'allow' as const, updatedInput: input };
+      }
+      return result;
     };
 
     this.abortController = new AbortController();

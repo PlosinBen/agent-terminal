@@ -80,7 +80,7 @@
   margin-bottom: 4px;
 }
 
-/* ── Diff ── */
+/* ── Diff (inline for Write) ── */
 
 .tool-diff {
   background: var(--bg-tertiary);
@@ -92,33 +92,79 @@
   overflow-y: auto;
 }
 
-.diff-line {
+.tool-diff .diff-line {
   display: flex;
   padding: 0 8px;
   min-height: 20px;
   line-height: 20px;
 }
 
-.diff-del {
+.diff-truncated {
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Side-by-side Diff (Edit) ── */
+
+.diff-side-by-side {
+  display: flex;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.diff-pane {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.diff-row {
+  display: flex;
+  padding: 0 6px;
+  min-height: 20px;
+  line-height: 20px;
+}
+
+.diff-line-num {
+  width: 28px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 6px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.diff-row.diff-del {
   background: rgba(239, 68, 68, 0.1);
   color: #fca5a5;
 }
 
-.diff-del .diff-sign {
+.diff-row.diff-del .diff-sign {
   color: #ef4444;
 }
 
-.diff-add {
+.diff-row.diff-add {
   background: rgba(34, 197, 94, 0.1);
   color: #86efac;
 }
 
-.diff-add .diff-sign {
+.diff-row.diff-add .diff-sign {
   color: #22c55e;
 }
 
+.diff-row.diff-empty {
+  opacity: 0;
+}
+
 .diff-sign {
-  width: 16px;
+  width: 14px;
   flex-shrink: 0;
   font-weight: bold;
 }
@@ -127,12 +173,6 @@
   white-space: pre-wrap;
   word-break: break-word;
   min-width: 0;
-}
-
-.diff-truncated {
-  padding: 4px 8px;
-  color: var(--text-secondary);
-  font-style: italic;
 }
 
 /* ── Todo ── */

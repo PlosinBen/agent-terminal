@@ -53,25 +53,46 @@ function BashContent() {
 
 function EditContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
   const filePath = stripCwd(String(input.file_path || ''), cwd);
-  const oldStr = String(input.old_string || '');
-  const newStr = String(input.new_string || '');
+  const oldLines = String(input.old_string || '').split('\n');
+  const newLines = String(input.new_string || '').split('\n');
+  const maxRows = Math.max(oldLines.length, newLines.length);
 
   return (
     <div className="tool-content">
       <div className="tool-file-path">{filePath}</div>
-      <div className="tool-diff">
-        {oldStr && oldStr.split('\n').map((line, i) => (
-          <div key={`old-${i}`} className="diff-line diff-del">
-            <span className="diff-sign">-</span>
-            <span className="diff-text">{line}</span>
-          </div>
-        ))}
-        {newStr && newStr.split('\n').map((line, i) => (
-          <div key={`new-${i}`} className="diff-line diff-add">
-            <span className="diff-sign">+</span>
-            <span className="diff-text">{line}</span>
-          </div>
-        ))}
+      <div className="diff-side-by-side">
+        <div className="diff-pane diff-pane-old">
+          {oldLines.map((line, i) => (
+            <div key={i} className="diff-row diff-del">
+              <span className="diff-line-num">{i + 1}</span>
+              <span className="diff-sign">-</span>
+              <span className="diff-text">{line}</span>
+            </div>
+          ))}
+          {Array.from({ length: maxRows - oldLines.length }, (_, i) => (
+            <div key={`pad-${i}`} className="diff-row diff-empty">
+              <span className="diff-line-num" />
+              <span className="diff-sign" />
+              <span className="diff-text" />
+            </div>
+          ))}
+        </div>
+        <div className="diff-pane diff-pane-new">
+          {newLines.map((line, i) => (
+            <div key={i} className="diff-row diff-add">
+              <span className="diff-line-num">{i + 1}</span>
+              <span className="diff-sign">+</span>
+              <span className="diff-text">{line}</span>
+            </div>
+          ))}
+          {Array.from({ length: maxRows - newLines.length }, (_, i) => (
+            <div key={`pad-${i}`} className="diff-row diff-empty">
+              <span className="diff-line-num" />
+              <span className="diff-sign" />
+              <span className="diff-text" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

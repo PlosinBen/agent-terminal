@@ -25,7 +25,7 @@ export function InputArea({ disabled, onSubmit, onStop }: Props) {
       return;
     }
 
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       const trimmed = input.trim();
       if (trimmed && !disabled) {
