@@ -43,7 +43,7 @@ function createWindow(wsPort: number) {
 app.whenReady().then(async () => {
   registerIpcHandlers();
   const port = await core.wsServer.start(getPreferredPort());
-  logger.debug(`Electron main ready, WS port=${port}`);
+  console.log(`[server] WS listening on port ${port}`);
 
   // Write port to env so preload can expose it
   process.env.WS_PORT = String(port);

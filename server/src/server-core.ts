@@ -37,9 +37,18 @@ export function createServerCore(): ServerCore {
   return { wsServer, sessionManager };
 }
 
-/** Parse preferred port from env */
+const DEFAULT_PORT = 9100;
+
+/** Parse preferred port: --port arg > AGENT_TERMINAL_PORT env > 9100 */
 export function getPreferredPort(): number {
-  return parseInt(process.env.AGENT_TERMINAL_PORT || '0', 10) || 0;
+  const portArgIdx = process.argv.indexOf('--port');
+  if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
+    const parsed = parseInt(process.argv[portArgIdx + 1], 10);
+    if (parsed > 0) return parsed;
+  }
+  const envPort = parseInt(process.env.AGENT_TERMINAL_PORT || '', 10);
+  if (envPort > 0) return envPort;
+  return DEFAULT_PORT;
 }
 
 /** Graceful shutdown helper */

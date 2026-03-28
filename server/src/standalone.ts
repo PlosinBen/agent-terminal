@@ -70,5 +70,5 @@ const preferredPort = getPreferredPort();
 httpServer.listen(preferredPort, () => {
   const addr = httpServer.address();
   const port = typeof addr === 'object' && addr ? addr.port : preferredPort;
-  logger.info(`Agent Terminal standalone server running on http://localhost:${port}`);
+  console.log(`[server] Standalone running on http://localhost:${port}`);
 });
