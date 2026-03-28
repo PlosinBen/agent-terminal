@@ -21,9 +21,11 @@ export type PermissionHandler = (req: PermissionRequest) => Promise<
 >;
 
 export interface StatusSegment {
-  label?: string;   // optional title, e.g. "5d"
-  value: string;    // content, e.g. "$12.30"
-  color?: string;   // value color, e.g. "cyan"
+  id?: string;       // interactive segment identifier, e.g. "model", "permissionMode", "effort"
+  label?: string;    // optional title, e.g. "5d"
+  value: string;     // display content, e.g. "$12.30"
+  rawValue?: string; // command value when different from display value
+  color?: string;    // value color, e.g. "cyan"
 }
 
 export interface CommandInfo {

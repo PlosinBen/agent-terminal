@@ -59,9 +59,9 @@ export class UsageTracker {
       ? (this.contextUsedTokens / this.contextWindow >= 0.8 ? '#e06c75' : this.contextUsedTokens / this.contextWindow >= 0.5 ? '#e5c07b' : undefined)
       : undefined;
     const segments: StatusSegment[] = [
-      { value: model },
-      { value: (PERMISSION_MODE_DISPLAY[permissionMode]?.label ?? permissionMode), color: PERMISSION_MODE_DISPLAY[permissionMode]?.color },
-      { label: 'effort', value: effort },
+      { id: 'model', value: model },
+      { id: 'permissionMode', value: (PERMISSION_MODE_DISPLAY[permissionMode]?.label ?? permissionMode), rawValue: permissionMode, color: PERMISSION_MODE_DISPLAY[permissionMode]?.color },
+      { id: 'effort', label: 'effort', value: effort },
       ...(ctxPct ? [{ label: 'ctx', value: ctxPct, color: ctxColor }] : []),
       { value: tokens },
       { value: `$${this.costUsd.toFixed(3)}` },

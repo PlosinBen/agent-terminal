@@ -10,7 +10,7 @@ export interface Message {
 }
 
 export interface StatusInfo {
-  segments: { label?: string; value: string; color?: string }[];
+  segments: { id?: string; label?: string; value: string; rawValue?: string; color?: string }[];
   agentStatus: 'idle' | 'running' | 'attention';
   gitBranch: string;
 }

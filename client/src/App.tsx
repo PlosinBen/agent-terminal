@@ -300,7 +300,14 @@ export function App() {
   const messages = activeState?.messages ?? [];
   const status = activeState?.status ?? { segments: [], agentStatus: 'idle' as const, gitBranch: '-' };
   const permissionReq = activeState?.permissionReq ?? null;
+  const providerConfig = activeState?.providerConfig ?? null;
   const activeProject = projects.find(p => p.id === activeProjectId);
+
+  const handleStatusCommand = useCallback((command: string, args: string) => {
+    if (!activeProjectId) return;
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (project) service.sendCommand(project, command, args);
+  }, [activeProjectId, service]);
 
   const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
     setProjects(prev => {
@@ -354,7 +361,7 @@ export function App() {
               visible={activeTab === 'terminal'}
               service={service}
             />
-            <StatusLine status={status} project={activeProject} />
+            <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={handleStatusCommand} />
             {permissionReq && (
               <PermissionPopup req={permissionReq} onRespond={handlePermission} cwd={activeProject?.cwd} />
             )}
