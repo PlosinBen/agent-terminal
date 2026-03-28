@@ -356,7 +356,7 @@ export function App() {
             />
             <StatusLine status={status} project={activeProject} />
             {permissionReq && (
-              <PermissionPopup req={permissionReq} onRespond={handlePermission} />
+              <PermissionPopup req={permissionReq} onRespond={handlePermission} cwd={activeProject?.cwd} />
             )}
             {activeProject?.connectionStatus === 'reconnecting' && (
               <div className="reconnecting-overlay">Reconnecting...</div>
