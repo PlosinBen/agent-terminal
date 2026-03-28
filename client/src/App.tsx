@@ -20,8 +20,6 @@ import type { ConfigUpdate } from './hooks/useProjects';
 declare global {
   interface Window {
     electronAPI?: {
-      getWsPort: () => Promise<number>;
-      getHomePath: () => Promise<string>;
       revealInFinder: (path: string) => void;
     };
   }

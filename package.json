@@ -5,13 +5,13 @@
   "description": "Agent terminal — Electron + WebSocket",
   "workspaces": ["server", "client"],
   "scripts": {
-    "dev": "rm -f debug.log && npm run build:server && concurrently -n tsc,vite,electron -c blue,green,yellow \"npm run dev -w server\" \"npm run dev -w client\" \"VITE_DEV_SERVER_URL=http://localhost:5173 electron server/dist/main.js\"",
-    "dev:server": "npm run dev -w server",
+    "dev": "rm -f debug.log && npm run build:server && concurrently --kill-others -n server,vite,electron -c blue,green,yellow \"tsx watch server/src/standalone.ts\" \"npm run dev -w client\" \"sleep 3 && VITE_DEV_SERVER_URL=http://localhost:5173 electron server/dist/main.js\"",
+    "dev:server": "tsx watch server/src/standalone.ts",
     "dev:client": "npm run dev -w client",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
     "electron": "electron server/dist/main.js",
-    "start": "npm run build:server && npm run electron",
+    "start": "npm run build:server && npm run build:client && npm run electron",
     "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js"
   },
   "devDependencies": {
