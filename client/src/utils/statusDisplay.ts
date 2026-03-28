@@ -14,6 +14,7 @@ export interface StatusDisplay {
 export function getStatusDisplay(input: StatusDisplayInput): StatusDisplay {
   if (input.connectionStatus === 'error') return { icon: '\u2715', color: '#e06c75', label: 'error' };
   if (input.connectionStatus === 'reconnecting') return { icon: '\u25D0', color: '#e06c75', label: 'reconnecting' };
+  if (input.connectionStatus === 'connecting') return { icon: '\u25CB', color: '#e5c07b', label: 'connecting' };
   if (input.connectionStatus !== 'connected') return { icon: '\u25CB', color: '#555', label: 'disconnected' };
   switch (input.agentStatus) {
     case 'idle':      return { icon: '\u25CF', color: '#98c379', label: 'idle' };

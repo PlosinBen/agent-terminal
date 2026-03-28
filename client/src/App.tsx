@@ -89,33 +89,19 @@ export function App() {
 
   // Acquire WS connection on mount + fetch home path via server:info
   useEffect(() => {
-    let host = DEFAULT_SERVER_HOST;
-    const init = async () => {
-      if (window.electronAPI) {
-        const port = await window.electronAPI.getWsPort();
-        host = `localhost:${port}`;
-      } else {
-        host = location.host;
-      }
-      setLocalHost(host);
-      service.acquireConnection(host);
-      ensureServer({ host, name: 'localhost' });
+    const host = DEFAULT_SERVER_HOST;
+    setLocalHost(host);
+    service.acquireConnection(host);
+    ensureServer({ host, name: 'localhost' });
 
-      if (service.isConnected(host)) {
-        setLocalConnected(true);
-      }
+    if (service.isConnected(host)) {
+      setLocalConnected(true);
+    }
 
-      try {
-        const info = await service.getServerInfo(host);
-        setHomePath(info.homePath);
-      } catch {
-        if (window.electronAPI) {
-          const home = await window.electronAPI.getHomePath();
-          setHomePath(home);
-        }
-      }
-    };
-    init();
+    service.getServerInfo(host).then(info => {
+      setHomePath(info.homePath);
+    }).catch(() => {});
+
     return () => {
       service.releaseConnection(host);
     };
@@ -339,7 +325,7 @@ export function App() {
         {activeProject && (
           <div className="tab-bar">
             <span className="tab-bar-project-name">{activeProject.name}</span>
-            {activeProject.connectionStatus !== 'disconnected' && (
+            {(activeProject.connectionStatus === 'connected' || activeProject.connectionStatus === 'reconnecting') && (
               <>
                 <button
                   className={`tab-btn${activeTab === 'agent' ? ' active' : ''}`}
@@ -353,7 +339,7 @@ export function App() {
             )}
           </div>
         )}
-        {activeProjectId && activeProject?.connectionStatus !== 'disconnected' ? (
+        {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
               <MessageList messages={messages} loading={loading} />
@@ -372,7 +358,7 @@ export function App() {
               <div className="reconnecting-overlay">Reconnecting...</div>
             )}
           </>
-        ) : activeProjectId && activeProject?.connectionStatus === 'disconnected' ? (
+        ) : activeProjectId && activeProject ? (
           <div
             className="empty-state connect-prompt"
             onClick={connectActiveProject}
@@ -380,7 +366,9 @@ export function App() {
             tabIndex={0}
             ref={(el) => el?.focus()}
           >
-            Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong>
+            {activeProject.connectionStatus === 'connecting'
+              ? <>Connecting to <strong>&nbsp;{activeProject.name}</strong>...</>
+              : <>Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong></>}
           </div>
         ) : (
           <div className="empty-state">

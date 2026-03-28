@@ -2,14 +2,7 @@ import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
 import { loadProviderCache, saveProviderCache } from '../../core/provider-cache.js';
-
-const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
-  default: { label: 'Prompt', color: '#ffffff' },
-  acceptEdits: { label: 'AcceptEdits', color: '#e5c07b' },
-  bypassPermissions: { label: 'BypassPermissions', color: '#e06c75' },
-  plan: { label: 'Plan', color: '#56b6c2' },
-  dontAsk: { label: 'AutoDeny' },
-};
+import { UsageTracker } from './usage-tracker.js';
 
 export class ClaudeBackend implements AgentBackend {
   private permissionHandler: PermissionHandler | null = null;
@@ -18,12 +11,7 @@ export class ClaudeBackend implements AgentBackend {
   private model = 'opus';
   private permissionMode: string = 'default';
   private effort: string = 'high';
-  private costUsd = 0;
-  private inputTokens = 0;
-  private outputTokens = 0;
-  private contextWindow = 0;
-  private contextUsedTokens = 0;
-  private rateLimits = new Map<string, { status: string; utilization?: number; resetsAt?: number }>();
+  private usage = new UsageTracker();
   private initialized = false;
   private onInitCallback: (() => void) | null = null;
   private abortController: AbortController | null = null;
@@ -168,20 +156,7 @@ export class ClaudeBackend implements AgentBackend {
           const result = msg as SDKResultSuccess | SDKResultError;
           if (result.subtype === 'success') {
             const success = result as SDKResultSuccess;
-            this.costUsd += success.total_cost_usd ?? 0;
-            this.inputTokens = success.usage.input_tokens;
-            this.outputTokens = success.usage.output_tokens;
-            // Aggregate context usage from modelUsage
-            if (success.modelUsage) {
-              let totalUsed = 0;
-              let maxWindow = 0;
-              for (const mu of Object.values(success.modelUsage)) {
-                totalUsed += mu.inputTokens + mu.cacheReadInputTokens + mu.cacheCreationInputTokens;
-                if (mu.contextWindow > maxWindow) maxWindow = mu.contextWindow;
-              }
-              this.contextUsedTokens = totalUsed;
-              this.contextWindow = maxWindow;
-            }
+            this.usage.update(success);
             yield {
               type: 'result',
               content: success.result,
@@ -236,13 +211,7 @@ export class ClaudeBackend implements AgentBackend {
         case 'rate_limit_event': {
           const rle = msg as Record<string, unknown>;
           const info = rle.rate_limit_info as Record<string, unknown> | undefined;
-          if (info?.rateLimitType) {
-            this.rateLimits.set(String(info.rateLimitType), {
-              status: String(info.status ?? 'allowed'),
-              utilization: info.utilization != null ? Number(info.utilization) : undefined,
-              resetsAt: info.resetsAt != null ? Number(info.resetsAt) : undefined,
-            });
-          }
+          if (info) this.usage.updateRateLimit(info);
           break;
         }
 
@@ -255,49 +224,7 @@ export class ClaudeBackend implements AgentBackend {
 
   getStatusSegments(): StatusSegment[] {
     if (!this.initialized) return [];
-    const tokens = `${(this.inputTokens / 1000).toFixed(0)}k+${(this.outputTokens / 1000).toFixed(0)}k`;
-    const ctxPct = this.contextWindow > 0
-      ? `${Math.round((this.contextUsedTokens / this.contextWindow) * 100)}%`
-      : null;
-    const ctxColor = this.contextWindow > 0
-      ? (this.contextUsedTokens / this.contextWindow >= 0.8 ? '#e06c75' : this.contextUsedTokens / this.contextWindow >= 0.5 ? '#e5c07b' : undefined)
-      : undefined;
-    const segments: StatusSegment[] = [
-      { value: this.model },
-      { value: (PERMISSION_MODE_DISPLAY[this.permissionMode]?.label ?? this.permissionMode), color: PERMISSION_MODE_DISPLAY[this.permissionMode]?.color },
-      { label: 'effort', value: this.effort },
-      ...(ctxPct ? [{ label: 'ctx', value: ctxPct, color: ctxColor }] : []),
-      { value: tokens },
-      { value: `$${this.costUsd.toFixed(3)}` },
-    ];
-    const labelMap: Record<string, string> = {
-      five_hour: '5h',
-      seven_day: '7d',
-      seven_day_opus: '7d-opus',
-      seven_day_sonnet: '7d-sonnet',
-    };
-    for (const [type, info] of this.rateLimits) {
-      let value: string;
-      let color: string | undefined;
-      if (info.utilization != null) {
-        const pct = Math.round(info.utilization);
-        color = pct >= 80 ? '#e06c75' : pct >= 50 ? '#e5c07b' : undefined;
-        value = `${pct}%`;
-      } else {
-        color = info.status === 'rejected' ? '#e06c75' : info.status === 'allowed_warning' ? '#e5c07b' : undefined;
-        value = info.status === 'allowed' ? 'ok' : info.status;
-      }
-      if (info.resetsAt) {
-        // resetsAt is epoch seconds, Date.now() is milliseconds
-        const diff = info.resetsAt * 1000 - Date.now();
-        if (diff > 0) {
-          const mins = Math.ceil(diff / 60000);
-          value += mins >= 60 ? ` ↻${(mins / 60).toFixed(1)}h` : ` ↻${mins}m`;
-        }
-      }
-      segments.push({ label: labelMap[type] ?? type, value, color });
-    }
-    return segments;
+    return this.usage.getStatusSegments(this.model, this.permissionMode, this.effort);
   }
 
   async executeCommand(name: string, args: string): Promise<ProviderCommandResult | null> {

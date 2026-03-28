@@ -17,6 +17,24 @@ export class AgentService {
   private listeners = new Map<string, Set<EventCallback>>();
   private messageUnsubs = new Map<string, () => void>();
 
+  // ── Request-Response Helper ──
+
+  private request<T extends DownstreamMessage>(
+    host: string,
+    upstream: UpstreamMessage & { requestId: string },
+    responseType: string,
+  ): Promise<T> {
+    return new Promise((resolve) => {
+      const unsub = this.cm.onMessage(host, (msg) => {
+        if (msg.type === responseType && 'requestId' in msg && msg.requestId === upstream.requestId) {
+          unsub();
+          resolve(msg as T);
+        }
+      });
+      this.cm.send(host, upstream);
+    });
+  }
+
   // ── Event Emitter ──
 
   on(event: string, callback: EventCallback): () => void {
@@ -70,27 +88,14 @@ export class AgentService {
   // ── Project Operations ──
 
   /** Create a project on the server. Returns when project:created is received. */
-  connectProject(project: ProjectInfo): Promise<ProjectCreatedMsg['project']> {
-    const requestId = nextRequestId();
-    return new Promise((resolve) => {
-      const unsub = this.cm.onMessage(project.serverHost, (msg) => {
-        if (msg.type === 'project:created' && msg.requestId === requestId) {
-          unsub();
-          resolve(msg.project);
-        }
-      });
-
-      this.cm.send(project.serverHost, {
-        type: 'project:create',
-        id: project.id,
-        cwd: project.cwd,
-        requestId,
-        sessionId: project.sessionId,
-        model: project.model,
-        permissionMode: project.permissionMode,
-        effort: project.effort,
-      });
-    });
+  async connectProject(project: ProjectInfo): Promise<ProjectCreatedMsg['project']> {
+    const msg = await this.request<ProjectCreatedMsg>(project.serverHost, {
+      type: 'project:create', id: project.id, cwd: project.cwd,
+      requestId: nextRequestId(),
+      sessionId: project.sessionId, model: project.model,
+      permissionMode: project.permissionMode, effort: project.effort,
+    }, 'project:created');
+    return msg.project;
   }
 
   /** Send an agent query (streaming — results come via events). */
@@ -112,23 +117,10 @@ export class AgentService {
 
   /** Send a slash command. Returns when command:result is received. */
   sendCommand(project: ProjectInfo, command: string, args: string): Promise<CommandResultMsg> {
-    const requestId = nextRequestId();
-    return new Promise((resolve) => {
-      const unsub = this.cm.onMessage(project.serverHost, (msg) => {
-        if (msg.type === 'command:result' && msg.requestId === requestId) {
-          unsub();
-          resolve(msg);
-        }
-      });
-
-      this.cm.send(project.serverHost, {
-        type: 'agent:command',
-        projectId: project.id,
-        command,
-        args,
-        requestId,
-      });
-    });
+    return this.request<CommandResultMsg>(project.serverHost, {
+      type: 'agent:command', projectId: project.id,
+      command, args, requestId: nextRequestId(),
+    }, 'command:result');
   }
 
   /** Respond to a permission request. */
@@ -149,62 +141,27 @@ export class AgentService {
 
   /** Get server info (home path, hostname). */
   getServerInfo(host: string): Promise<ServerInfoResultMsg> {
-    const requestId = nextRequestId();
-    return new Promise((resolve) => {
-      const unsub = this.cm.onMessage(host, (msg) => {
-        if (msg.type === 'server:info_result' && msg.requestId === requestId) {
-          unsub();
-          resolve(msg);
-        }
-      });
-
-      this.cm.send(host, {
-        type: 'server:info',
-        requestId,
-      });
-    });
+    return this.request<ServerInfoResultMsg>(host, {
+      type: 'server:info', requestId: nextRequestId(),
+    }, 'server:info_result');
   }
 
   // ── Folder Listing (server-level, no projectId) ──
 
   /** List folders at a path on a server. Returns a Promise. */
   listFolders(server: ServerConfig, path: string): Promise<FolderListResultMsg> {
-    const requestId = nextRequestId();
-    return new Promise((resolve) => {
-      const unsub = this.cm.onMessage(server.host, (msg) => {
-        if (msg.type === 'folder:list_result' && msg.requestId === requestId) {
-          unsub();
-          resolve(msg);
-        }
-      });
-
-      this.cm.send(server.host, {
-        type: 'folder:list',
-        path,
-        requestId,
-      });
-    });
+    return this.request<FolderListResultMsg>(server.host, {
+      type: 'folder:list', path, requestId: nextRequestId(),
+    }, 'folder:list_result');
   }
 
   // ── PTY Operations ──
 
   /** Spawn a PTY for a project. Resolves when pty:spawned is received. */
-  spawnPty(project: ProjectInfo): Promise<void> {
-    const requestId = nextRequestId();
-    return new Promise((resolve) => {
-      const unsub = this.cm.onMessage(project.serverHost, (msg) => {
-        if (msg.type === 'pty:spawned' && 'projectId' in msg && msg.projectId === project.id) {
-          unsub();
-          resolve();
-        }
-      });
-
-      this.cm.send(project.serverHost, {
-        type: 'pty:spawn',
-        projectId: project.id,
-        requestId,
-      });
-    });
+  async spawnPty(project: ProjectInfo): Promise<void> {
+    await this.request(project.serverHost, {
+      type: 'pty:spawn', projectId: project.id, requestId: nextRequestId(),
+    }, 'pty:spawned');
   }
 
   /** Send input to a project's PTY. */
