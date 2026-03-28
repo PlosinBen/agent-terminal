@@ -1,6 +1,7 @@
 import type { UpstreamMessage, DownstreamMessage, FolderListResultMsg, ProjectCreatedMsg, CommandResultMsg, ServerInfoResultMsg } from '@shared/protocol';
-import type { ProjectInfo } from '../components/Sidebar';
-import type { ServerConfig, ServiceEventHandler, ConnectionChangedPayload } from './types';
+import type { ProjectInfo } from '../types/project';
+import type { ServerConfig } from '../types/server';
+import type { ServiceEventHandler, ConnectionChangedPayload } from './types';
 import { ServiceEvent } from './types';
 import { ConnectionManager } from './connection-manager';
 

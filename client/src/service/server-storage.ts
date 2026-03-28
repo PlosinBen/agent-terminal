@@ -1,4 +1,4 @@
-import type { ServerConfig } from './types';
+import type { ServerConfig } from '../types/server';
 
 const STORAGE_KEY = 'agent-terminal:servers';
 

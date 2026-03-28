@@ -1,26 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DownstreamMessage } from '@shared/protocol';
-
-export interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  messageType?: 'text' | 'tool_use' | 'result' | 'error';
-  toolName?: string;
-  collapsible?: boolean;
-}
-
-export interface StatusInfo {
-  segments: { label?: string; value: string; color?: string }[];
-  agentStatus: 'idle' | 'running' | 'attention';
-  gitBranch: string;
-}
-
-export interface PermissionReq {
-  requestId: string;
-  toolName: string;
-  input: Record<string, unknown>;
-  title?: string;
-}
+import type { Message, StatusInfo, PermissionReq } from '../types/message';
 
 export function useProject(
   projectId: string | null,

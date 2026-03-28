@@ -1,4 +1,4 @@
-import type { ConnectionStatus } from '../components/Sidebar';
+import type { ConnectionStatus } from '../types/project';
 
 export interface StatusDisplayInput {
   agentStatus: 'idle' | 'running' | 'attention';

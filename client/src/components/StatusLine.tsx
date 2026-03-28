@@ -1,5 +1,5 @@
-import type { StatusInfo } from '../hooks/useProject';
-import type { ProjectInfo } from './Sidebar';
+import type { StatusInfo } from '../types/message';
+import type { ProjectInfo } from '../types/project';
 import { getStatusDisplay } from '../utils/statusDisplay';
 import './StatusLine.css';
 

@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useService, ServiceEvent } from './service';
 import type { ConnectionChangedPayload } from './service';
 import { useProjects } from './hooks/useProjects';
-import { Sidebar, type ProjectInfo } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
+import type { ProjectInfo } from './types/project';
 import { MessageList } from './components/MessageList';
 import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
@@ -13,8 +14,7 @@ import { loadKeybindings, formatBinding } from './keybindings';
 import { keyboard } from './services/keyboard';
 import { useKeyboardScope } from './hooks/useKeyboardScope';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from './projects-storage';
-import { loadServers, saveServers } from './service/server-storage';
-import type { ServerConfig } from './service/types';
+import { useServerStore } from './stores/server-store';
 import type { ConfigUpdate } from './hooks/useProjects';
 
 declare global {
@@ -31,8 +31,11 @@ const DEFAULT_SERVER_HOST = window.electronAPI ? 'localhost:9100' : location.hos
 
 export function App() {
   const service = useService();
-  const [serverHost, setServerHost] = useState(DEFAULT_SERVER_HOST);
-  const [connected, setConnected] = useState(false);
+  const {
+    servers, localHost, homePath, localConnected,
+    setLocalHost, setHomePath, setLocalConnected,
+    addServer, removeServer, ensureServer,
+  } = useServerStore();
 
   const handleConfigUpdate = useCallback((update: ConfigUpdate) => {
     setProjects(prev => {
@@ -70,8 +73,6 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [activeTab, setActiveTab] = useState<'agent' | 'terminal'>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
-  const [homePath, setHomePath] = useState('/');
-  const [servers, setServers] = useState<ServerConfig[]>(() => loadServers());
 
   const keybindings = useMemo(() => loadKeybindings(), []);
 
@@ -79,8 +80,6 @@ export function App() {
   projectsRef.current = projects;
   const activeRef = useRef(activeProjectId);
   activeRef.current = activeProjectId;
-  const serverHostRef = useRef(serverHost);
-  serverHostRef.current = serverHost;
 
   // Start keyboard service once
   useEffect(() => {
@@ -98,23 +97,14 @@ export function App() {
       } else {
         host = location.host;
       }
-      setServerHost(host);
+      setLocalHost(host);
       service.acquireConnection(host);
+      ensureServer({ host, name: 'localhost' });
 
-      // Ensure local server is in the servers list
-      setServers(prev => {
-        if (prev.some(s => s.host === host)) return prev;
-        const next = [{ host, name: 'localhost' }, ...prev];
-        saveServers(next);
-        return next;
-      });
-
-      // Check if already connected (in case onopen fired before listener was ready)
       if (service.isConnected(host)) {
-        setConnected(true);
+        setLocalConnected(true);
       }
 
-      // Fetch home path from server (works for both Electron and standalone)
       try {
         const info = await service.getServerInfo(host);
         setHomePath(info.homePath);
@@ -160,32 +150,14 @@ export function App() {
     initProject(project.id);
   }, [service, initProject]);
 
-  const addServer = useCallback((name: string, host: string) => {
-    setServers(prev => {
-      if (prev.some(s => s.host === host)) return prev;
-      const next = [...prev, { host, name }];
-      saveServers(next);
-      return next;
-    });
-    service.acquireConnection(host);
-  }, [service]);
-
-  const removeServer = useCallback((host: string) => {
-    setServers(prev => {
-      const next = prev.filter(s => s.host !== host);
-      saveServers(next);
-      return next;
-    });
-  }, []);
-
   // Track connection status for all servers
   useEffect(() => {
     return service.on(ServiceEvent.ConnectionChanged, (payload) => {
       const ev = payload as ConnectionChangedPayload;
 
       // Track local server connected state for the empty-state UI
-      if (ev.host === serverHostRef.current) {
-        setConnected(ev.status === 'connected');
+      if (ev.host === useServerStore.getState().localHost) {
+        setLocalConnected(ev.status === 'connected');
       }
 
       if (ev.status === 'reconnecting') {
@@ -243,18 +215,18 @@ export function App() {
 
   // Auto-open folder picker on first connect if no saved projects
   useEffect(() => {
-    if (!connected || projectsRef.current.length > 0) return;
+    if (!localConnected || projectsRef.current.length > 0) return;
     setShowFolderPicker(true);
-  }, [connected]);
+  }, [localConnected]);
 
   // Connect the active project explicitly
   const connectActiveProject = useCallback(() => {
-    if (!connected || !activeProjectId) return;
+    if (!localConnected || !activeProjectId) return;
     const project = projectsRef.current.find(p => p.id === activeProjectId);
     if (project && project.connectionStatus === 'disconnected') {
       connectProject(project);
     }
-  }, [connected, activeProjectId, connectProject]);
+  }, [localConnected, activeProjectId, connectProject]);
 
   const closeProject = useCallback((targetId: string) => {
     const list = projectsRef.current;
@@ -412,7 +384,7 @@ export function App() {
           </div>
         ) : (
           <div className="empty-state">
-            {connected ? `Press ${formatBinding(keybindings.newProject)} to open a project` : 'Connecting...'}
+            {localConnected ? `Press ${formatBinding(keybindings.newProject)} to open a project` : 'Connecting...'}
           </div>
         )}
       </div>
@@ -420,7 +392,7 @@ export function App() {
         <FolderPicker
           service={service}
           servers={servers}
-          initialServerHost={serverHost}
+          initialServerHost={localHost}
           initialPath={homePath}
           onSelect={(folderPath, selectedHost) => {
             setShowFolderPicker(false);

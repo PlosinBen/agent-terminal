@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { AgentService } from '../service/agent-service';
-import type { ServerConfig } from '../service/types';
+import type { ServerConfig } from '../types/server';
 import { ServiceEvent } from '../service/types';
 import type { ConnectionChangedPayload } from '../service/types';
 import { useKeyboardScope } from '../hooks/useKeyboardScope';

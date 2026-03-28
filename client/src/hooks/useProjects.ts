@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DownstreamMessage } from '@shared/protocol';
-import type { Message, StatusInfo, PermissionReq } from './useProject';
+import type { Message, StatusInfo, PermissionReq } from '../types/message';
 import type { AgentService } from '../service/agent-service';
 import { ServiceEvent } from '../service/types';
 

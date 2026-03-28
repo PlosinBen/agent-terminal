@@ -1,22 +1,8 @@
 import { useState } from 'react';
 import { ContextMenu } from './ContextMenu';
 import { getStatusDisplay } from '../utils/statusDisplay';
+import type { ProjectInfo } from '../types/project';
 import './Sidebar.css';
-
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
-
-export interface ProjectInfo {
-  id: string;
-  name: string;
-  cwd: string;
-  serverHost: string;
-  agentStatus: 'idle' | 'running' | 'attention';
-  connectionStatus: ConnectionStatus;
-  sessionId?: string;
-  model?: string;
-  permissionMode?: string;
-  effort?: string;
-}
 
 interface Props {
   projects: ProjectInfo[];

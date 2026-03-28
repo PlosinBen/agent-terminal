@@ -1,12 +1,5 @@
 import type { DownstreamMessage } from '@shared/protocol';
 
-// ── Server Config ──
-
-export interface ServerConfig {
-  host: string;  // unique key, e.g. "localhost:9100"
-  name: string;
-}
-
 // ── Service Events ──
 
 export const ServiceEvent = {

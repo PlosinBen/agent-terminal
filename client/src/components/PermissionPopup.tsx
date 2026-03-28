@@ -1,4 +1,4 @@
-import type { PermissionReq } from '../hooks/useProject';
+import type { PermissionReq } from '../types/message';
 import './PermissionPopup.css';
 
 interface Props {

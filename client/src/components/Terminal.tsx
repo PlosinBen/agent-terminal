@@ -3,7 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import type { AgentService } from '../service/agent-service';
-import type { ProjectInfo } from './Sidebar';
+import type { ProjectInfo } from '../types/project';
 import { ServiceEvent } from '../service/types';
 import '@xterm/xterm/css/xterm.css';
 import './Terminal.css';
