@@ -49,7 +49,10 @@ export function buildCommandList(providerConfig?: ProviderConfig | null): Comman
     });
 
     if (providerConfig.slashCommands) {
+      // Filter out commands already handled client-side
+      const clientHandled = new Set(['model', 'mode', 'effort', 'clear', 'help']);
       for (const cmd of providerConfig.slashCommands) {
+        if (clientHandled.has(cmd.name)) continue;
         commands.push({
           name: cmd.name,
           description: cmd.description,

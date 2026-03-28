@@ -61,6 +61,55 @@ export class ClaudeBackend implements AgentBackend {
     this.permissionHandler = handler;
   }
 
+  /**
+   * Warm-up: initialize SDK and populate provider cache without consuming tokens.
+   * Aborts immediately after receiving init message.
+   */
+  async warmup(cwd: string): Promise<void> {
+    if (getProviderCache('claude')) {
+      this.initialized = true;
+      this.onInitCallback?.();
+      return;
+    }
+
+    const abortController = new AbortController();
+    const generator = sdkQuery({
+      prompt: ' ',
+      options: {
+        cwd,
+        permissionMode: 'plan' as PermissionMode,
+        abortController,
+      },
+    });
+
+    try {
+      for await (const message of generator) {
+        const msg = message as SDKMessage;
+        if (msg.type === 'system') {
+          const sysMsg = msg as Record<string, unknown>;
+          if (sysMsg.subtype === 'init' && !this.initialized) {
+            this.initialized = true;
+            const [models, commands] = await Promise.all([
+              generator.supportedModels().catch(() => []),
+              generator.supportedCommands().catch(() => []),
+            ]);
+            setProviderCache('claude', {
+              models: models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description })),
+              slashCommands: commands.map(c => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+              permissionModes: ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'],
+              effortLevels: ['low', 'medium', 'high', 'max'],
+            });
+            this.onInitCallback?.();
+            abortController.abort();
+            break;
+          }
+        }
+      }
+    } catch {
+      // Abort throws — expected
+    }
+  }
+
   private createSdkQuery(prompt: string, opts: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): Query {
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (!this.permissionHandler) {

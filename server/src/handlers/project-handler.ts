@@ -48,6 +48,9 @@ export function handleProjectCreate(
 
   // Send initial status (git branch, etc.) immediately
   if (wsServer) broadcastStatus(session, project.id, wsServer);
+
+  // Warm-up: initialize SDK to get provider config (models, commands) early
+  backend.warmup(project.cwd).catch(() => {});
 }
 
 export function handleProjectList(
