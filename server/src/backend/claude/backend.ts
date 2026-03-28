@@ -247,7 +247,6 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getStatusSegments(): StatusSegment[] {
-    if (!this.initialized) return [];
     return this.usage.getStatusSegments(this.model, this.permissionMode, this.effort);
   }
 
