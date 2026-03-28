@@ -55,42 +55,44 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
       <span className="status-sep">|</span>
       <span className="status-branch">{status.gitBranch}</span>
 
-      {/* Model */}
-      <span className="status-segment">
-        <span className="status-sep">|</span>
-        <span
-          className={isInteractive ? 'status-seg-interactive' : undefined}
-          style={isInteractive ? undefined : { color: 'var(--text-secondary)' }}
-          onClick={isInteractive ? () => handleCycle('model', 'model', currentModel) : undefined}
-        >
-          {currentModel}
-        </span>
-      </span>
+      {isInteractive && (
+        <>
+          {/* Model */}
+          <span className="status-segment">
+            <span className="status-sep">|</span>
+            <span
+              className="status-seg-interactive"
+              onClick={() => handleCycle('model', 'model', currentModel)}
+            >
+              {currentModel}
+            </span>
+          </span>
 
-      {/* Permission Mode */}
-      <span className="status-segment">
-        <span className="status-sep">|</span>
-        <span
-          className={isInteractive ? 'status-seg-interactive' : undefined}
-          style={{ color: isInteractive ? (modeDisplay?.color ?? 'var(--text-secondary)') : 'var(--text-secondary)' }}
-          onClick={isInteractive ? () => handleCycle('permissionMode', 'mode', currentMode) : undefined}
-        >
-          {modeDisplay?.label ?? currentMode}
-        </span>
-      </span>
+          {/* Permission Mode */}
+          <span className="status-segment">
+            <span className="status-sep">|</span>
+            <span
+              className="status-seg-interactive"
+              style={{ color: modeDisplay?.color ?? undefined }}
+              onClick={() => handleCycle('permissionMode', 'mode', currentMode)}
+            >
+              {modeDisplay?.label ?? currentMode}
+            </span>
+          </span>
 
-      {/* Effort */}
-      <span className="status-segment">
-        <span className="status-sep">|</span>
-        <span
-          className={isInteractive ? 'status-seg-interactive' : undefined}
-          style={isInteractive ? undefined : { color: 'var(--text-secondary)' }}
-          onClick={isInteractive ? () => handleCycle('effort', 'effort', currentEffort) : undefined}
-        >
-          <span className="status-seg-label">effort: </span>
-          {currentEffort}
-        </span>
-      </span>
+          {/* Effort */}
+          <span className="status-segment">
+            <span className="status-sep">|</span>
+            <span
+              className="status-seg-interactive"
+              onClick={() => handleCycle('effort', 'effort', currentEffort)}
+            >
+              <span className="status-seg-label">effort: </span>
+              {currentEffort}
+            </span>
+          </span>
+        </>
+      )}
 
       {/* Server-provided usage segments */}
       {status.segments.map((seg, i) => (
