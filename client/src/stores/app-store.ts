@@ -9,8 +9,8 @@ interface AppState {
   /** Push a scope onto the stack (e.g. opening a modal). */
   pushScope: (scope: Scope) => void;
 
-  /** Pop the top scope (e.g. closing a modal). Falls back to 'app'. */
-  popScope: () => void;
+  /** Remove a specific scope from the stack (safe against cleanup order mismatches). */
+  removeScope: (scope: Scope) => void;
 
   /** Current active scope (top of stack). */
   readonly currentScope: Scope;
@@ -21,9 +21,14 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   pushScope: (scope) => set((s) => ({ scopeStack: [...s.scopeStack, scope] })),
 
-  popScope: () => set((s) => ({
-    scopeStack: s.scopeStack.length > 1 ? s.scopeStack.slice(0, -1) : ['app'],
-  })),
+  removeScope: (scope) => set((s) => {
+    // Remove the last occurrence of the given scope
+    const idx = s.scopeStack.lastIndexOf(scope);
+    if (idx <= 0) return s; // never remove 'app' at index 0
+    const next = [...s.scopeStack];
+    next.splice(idx, 1);
+    return { scopeStack: next.length > 0 ? next : ['app'] };
+  }),
 
   get currentScope(): Scope {
     const stack = get().scopeStack;

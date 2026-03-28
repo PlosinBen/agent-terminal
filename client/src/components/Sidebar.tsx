@@ -27,7 +27,7 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
     <div className="sidebar">
       <div className="sidebar-header">
         <span>Projects</span>
-        <button className="sidebar-add-btn" onClick={onNew} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
+        <button className="sidebar-add-btn" onClick={onNew} tabIndex={-1} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
       </div>
       <div className="sidebar-list">
         {projects.map((p, i) => {

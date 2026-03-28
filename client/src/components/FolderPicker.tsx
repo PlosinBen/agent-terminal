@@ -110,29 +110,30 @@ export function FolderPicker({
   }, [filter]);
 
   // ── Scope management: switch between folder-picker and folder-picker-form ──
+  const shouldBlock = showAddForm || loading;
   useEffect(() => {
-    const { pushScope, popScope } = useAppStore.getState();
-    if (showAddForm || loading) {
-      pushScope('folder-picker-form');
-    }
-    return () => {
-      // Only pop if we pushed (form closed or loading ended)
-      if (showAddForm || loading) {
-        popScope();
-      }
-    };
-  }, [showAddForm, loading]);
+    if (!shouldBlock) return;
+    const { pushScope, removeScope } = useAppStore.getState();
+    pushScope('folder-picker-form');
+    return () => removeScope('folder-picker-form');
+  }, [shouldBlock]);
 
   // Folder-picker scope keybindings (active when not in form/loading)
   useKeyboardScope('folder-picker', useMemo(() => ({
-    'ArrowUp': () => setSelectedIndex(i => Math.max(0, i - 1)),
+    'ArrowUp': () => setSelectedIndex(i => Math.max(-1, i - 1)),
     'ArrowDown': () => setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1)),
     'ArrowRight': () => {
+      if (selectedIndexRef.current === -1) { goUp(); return; }
       const entry = filteredRef.current[selectedIndexRef.current];
       if (entry) requestFolder(currentPathRef.current + '/' + entry);
     },
     'ArrowLeft': () => goUp(),
-    'Enter': () => onSelect(currentPathRef.current, activeHostRef.current),
+    'Enter': () => {
+      if (selectedIndexRef.current === -1) { goUp(); return; }
+      const entry = filteredRef.current[selectedIndexRef.current];
+      const path = entry ? `${currentPathRef.current}/${entry}` : currentPathRef.current;
+      onSelect(path, activeHostRef.current);
+    },
     'Escape': () => onCancel(),
     'Backspace': () => setFilter(f => f.slice(0, -1)),
     [PRINTABLE]: (e: KeyboardEvent) => setFilter(f => f + e.key),
@@ -173,9 +174,14 @@ export function FolderPicker({
       if (e.target === e.currentTarget) onCancel();
     }}>
       <div className="folder-picker">
+        <div className="fp-header">Open Project</div>
+        <div className="fp-body">
         {/* ── Left: Server List ── */}
         <div className="fp-servers">
-          <div className="fp-servers-header">Servers</div>
+          <div className="fp-servers-header">
+            <span>Servers</span>
+            <button className="fp-servers-add-btn" onClick={() => setShowAddForm(true)} title="Add Server">+</button>
+          </div>
           <div className="fp-servers-list">
             {servers.map(s => {
               const status = serverStatuses[s.host] ?? 'disconnected';
@@ -237,12 +243,7 @@ export function FolderPicker({
                 <button className="fp-add-cancel" onClick={() => setShowAddForm(false)}>Cancel</button>
               </div>
             </div>
-          ) : (
-            <button
-              className="fp-add-btn"
-              onClick={() => setShowAddForm(true)}
-            >+ Add Server</button>
-          )}
+          ) : null}
         </div>
 
         {/* ── Right: Folder Browser ── */}
@@ -250,8 +251,7 @@ export function FolderPicker({
           {loading && <div className="fp-browser-loading-overlay">Loading...</div>}
 
           <div className="fp-browser-header">
-            <div className="fp-browser-title">Open Project</div>
-            <div className="fp-browser-path">{currentPath}</div>
+            <div className="fp-browser-path">{filtered[selectedIndex] ? `${currentPath}/${filtered[selectedIndex]}` : currentPath}</div>
           </div>
 
           <div className="fp-browser-filter">
@@ -261,7 +261,7 @@ export function FolderPicker({
           {error && <div className="fp-browser-error">{error}</div>}
 
           <div className="fp-browser-list" ref={listRef}>
-            <div className="folder-picker-item" onClick={goUp}>
+            <div className={`folder-picker-item${selectedIndex === -1 ? ' selected' : ''}`} onClick={() => setSelectedIndex(-1)} onDoubleClick={goUp}>
               <span className="folder-picker-item-icon">{'\u2190'}</span>
               <span className="folder-picker-item-name">..</span>
             </div>
@@ -275,8 +275,8 @@ export function FolderPicker({
                 <div
                   key={name}
                   className={`folder-picker-item${i === selectedIndex ? ' selected' : ''}`}
-                  onClick={() => requestFolder(currentPath + '/' + name)}
-                  onMouseEnter={() => setSelectedIndex(i)}
+                  onClick={() => setSelectedIndex(i)}
+                  onDoubleClick={() => requestFolder(currentPath + '/' + name)}
                 >
                   <span className="folder-picker-item-icon">{'\uD83D\uDCC1'}</span>
                   <span className="folder-picker-item-name">{name}</span>
@@ -286,12 +286,15 @@ export function FolderPicker({
           </div>
 
           <div className="fp-browser-footer">
-            <span className="fp-hint"><kbd>{'\u2191\u2193'}</kbd> select</span>
-            <span className="fp-hint"><kbd>{'\u2192'}</kbd> enter</span>
-            <span className="fp-hint"><kbd>{'\u2190'}</kbd> up</span>
-            <span className="fp-hint"><kbd>Enter</kbd> confirm</span>
-            <span className="fp-hint"><kbd>Esc</kbd> cancel</span>
+            <div className="fp-browser-hints">
+              <span className="fp-hint"><kbd>{'\u2191\u2193'}</kbd> select</span>
+              <span className="fp-hint"><kbd>{'\u2192'}</kbd> enter</span>
+              <span className="fp-hint"><kbd>{'\u2190'}</kbd> up</span>
+              <span className="fp-hint"><kbd>Enter</kbd> confirm</span>
+              <span className="fp-hint"><kbd>Esc</kbd> cancel</span>
+            </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -243,15 +243,17 @@ export function App() {
     [keybindings.newProject]: () => openFolderPicker(),
     [keybindings.nextProject]: () => {
       const list = projectsRef.current;
-      if (list.length < 2) return;
+      if (list.length === 0) return;
       const idx = list.findIndex(p => p.id === activeRef.current);
-      setActiveProjectId(list[(idx + 1) % list.length].id);
+      const id = list[(idx + 1) % list.length].id;
+      setActiveProjectId(id);
     },
     [keybindings.prevProject]: () => {
       const list = projectsRef.current;
-      if (list.length < 2) return;
+      if (list.length === 0) return;
       const idx = list.findIndex(p => p.id === activeRef.current);
-      setActiveProjectId(list[(idx - 1 + list.length) % list.length].id);
+      const id = list[(idx - 1 + list.length) % list.length].id;
+      setActiveProjectId(id);
     },
     [keybindings.toggleTerminal]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
     [keybindings.closeProject]: () => {

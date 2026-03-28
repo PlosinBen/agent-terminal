@@ -23,7 +23,7 @@ export function useKeyboardScope(
   useEffect(() => {
     if (!autoScope) return;
     useAppStore.getState().pushScope(scope);
-    return () => useAppStore.getState().popScope();
+    return () => useAppStore.getState().removeScope(scope);
   }, [scope, autoScope]);
 
   // Register all bindings — re-register when bindings object identity changes

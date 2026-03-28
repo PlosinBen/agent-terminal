@@ -28,11 +28,11 @@ class KeyboardService {
   start(): void {
     if (this.started) return;
     this.started = true;
-    window.addEventListener('keydown', this.handleKeyDown);
+    window.addEventListener('keydown', this.handleKeyDown, true);
   }
 
   stop(): void {
-    window.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('keydown', this.handleKeyDown, true);
     this.started = false;
   }
 
