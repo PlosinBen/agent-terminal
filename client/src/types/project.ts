@@ -1,5 +1,6 @@
+export type { AgentStatus } from '@shared/types';
+
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
-export type AgentStatus = 'idle' | 'running' | 'attention';
 
 /** Runtime project state — includes both persisted config and transient UI state. */
 export interface ProjectInfo {

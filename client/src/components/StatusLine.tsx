@@ -1,5 +1,6 @@
 import type { StatusInfo, ProviderConfig } from '../types/message';
 import type { ProjectInfo } from '../types/project';
+import { PERMISSION_MODE_LABELS } from '@shared/types';
 import { getStatusDisplay } from '../utils/statusDisplay';
 import './StatusLine.css';
 
@@ -10,12 +11,11 @@ interface Props {
   onCommand?: (command: string, args: string) => void;
 }
 
-const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
-  default: { label: 'Prompt', color: '#ffffff' },
-  acceptEdits: { label: 'AcceptEdits', color: '#e5c07b' },
-  bypassPermissions: { label: 'BypassPermissions', color: '#e06c75' },
-  plan: { label: 'Plan', color: '#56b6c2' },
-  dontAsk: { label: 'AutoDeny' },
+const PERMISSION_MODE_COLORS: Record<string, string> = {
+  default: '#ffffff',
+  acceptEdits: '#e5c07b',
+  bypassPermissions: '#e06c75',
+  plan: '#56b6c2',
 };
 
 function getOptions(id: string, config: ProviderConfig): string[] {
@@ -44,7 +44,8 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
   const currentModel = project?.model ?? 'opus';
   const currentMode = project?.permissionMode ?? 'default';
   const currentEffort = project?.effort ?? 'high';
-  const modeDisplay = PERMISSION_MODE_DISPLAY[currentMode];
+  const modeLabel = PERMISSION_MODE_LABELS[currentMode] ?? currentMode;
+  const modeColor = PERMISSION_MODE_COLORS[currentMode];
 
   return (
     <div className="status-line">
@@ -73,10 +74,10 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
             <span className="status-sep">|</span>
             <span
               className="status-seg-interactive"
-              style={{ color: modeDisplay?.color ?? undefined }}
+              style={{ color: modeColor }}
               onClick={() => handleCycle('permissionMode', 'mode', currentMode)}
             >
-              {modeDisplay?.label ?? currentMode}
+              {modeLabel}
             </span>
           </span>
 

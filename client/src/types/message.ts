@@ -1,3 +1,7 @@
+import type { AgentStatus, StatusSegment } from '@shared/types';
+
+export type { ProviderConfig } from '@shared/types';
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -10,16 +14,9 @@ export interface Message {
 }
 
 export interface StatusInfo {
-  segments: { label?: string; value: string; color?: string }[];
-  agentStatus: 'idle' | 'running' | 'attention';
+  segments: StatusSegment[];
+  agentStatus: AgentStatus;
   gitBranch: string;
-}
-
-export interface ProviderConfig {
-  models: { value: string; displayName: string; description: string }[];
-  permissionModes: string[];
-  effortLevels: string[];
-  slashCommands?: { name: string; description: string; argumentHint: string }[];
 }
 
 export interface PermissionReq {

@@ -1,3 +1,6 @@
+import type { StatusSegment } from '../shared/types.js';
+export type { StatusSegment } from '../shared/types.js';
+
 export interface AgentMessage {
   type: 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'system' | 'result';
   content: string;
@@ -19,12 +22,6 @@ export interface PermissionRequest {
 export type PermissionHandler = (req: PermissionRequest) => Promise<
   { behavior: 'allow' } | { behavior: 'deny'; message: string }
 >;
-
-export interface StatusSegment {
-  label?: string;    // optional title, e.g. "5d"
-  value: string;     // display content, e.g. "$12.30"
-  color?: string;    // value color, e.g. "cyan"
-}
 
 export interface CommandInfo {
   name: string;

@@ -1,4 +1,5 @@
 import type { ProviderConfig } from './types/message';
+import { PERMISSION_MODE_LABELS } from '@shared/types';
 
 export interface CommandOption {
   value: string;
@@ -15,14 +16,6 @@ export interface CommandDef {
 const APP_COMMANDS: CommandDef[] = [
   { name: 'clear', description: 'Clear screen', argumentHint: '' },
 ];
-
-const PERMISSION_MODE_LABELS: Record<string, string> = {
-  default: 'Prompt',
-  acceptEdits: 'AcceptEdits',
-  bypassPermissions: 'BypassPermissions',
-  plan: 'Plan',
-  dontAsk: 'AutoDeny',
-};
 
 export function buildCommandList(providerConfig?: ProviderConfig | null): CommandDef[] {
   const commands: CommandDef[] = [...APP_COMMANDS];
