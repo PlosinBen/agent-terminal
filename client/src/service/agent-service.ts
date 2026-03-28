@@ -92,8 +92,7 @@ export class AgentService {
     const msg = await this.request<ProjectCreatedMsg>(project.serverHost, {
       type: 'project:create', id: project.id, cwd: project.cwd,
       requestId: nextRequestId(),
-      sessionId: project.sessionId, model: project.model,
-      permissionMode: project.permissionMode, effort: project.effort,
+      sessionId: project.sessionId,
     }, 'project:created');
     return msg.project;
   }
@@ -104,6 +103,18 @@ export class AgentService {
       type: 'agent:query',
       projectId: project.id,
       prompt,
+      model: project.model,
+      permissionMode: project.permissionMode,
+      effort: project.effort,
+    });
+  }
+
+  /** Send runtime permission mode change (only effective during active query). */
+  sendSetPermissionMode(project: ProjectInfo, mode: string): void {
+    this.cm.send(project.serverHost, {
+      type: 'set:permissionMode',
+      projectId: project.id,
+      mode,
     });
   }
 

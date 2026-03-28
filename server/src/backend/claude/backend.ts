@@ -1,46 +1,28 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
-import { loadProviderCache, saveProviderCache } from '../../core/provider-cache.js';
+import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { UsageTracker } from './usage-tracker.js';
 
 export class ClaudeBackend implements AgentBackend {
   private permissionHandler: PermissionHandler | null = null;
   private sessionId: string | undefined;
   private activeQuery: Query | null = null;
-  private model = 'opus';
-  private permissionMode: string = 'default';
-  private effort: string = 'high';
   private usage = new UsageTracker();
   private initialized = false;
   private onInitCallback: (() => void) | null = null;
   private abortController: AbortController | null = null;
 
-  constructor(opts?: { sessionId?: string; model?: string; permissionMode?: string; effort?: string }) {
+  constructor(opts?: { sessionId?: string }) {
     if (opts?.sessionId) this.sessionId = opts.sessionId;
-    if (opts?.model) this.model = opts.model;
-    if (opts?.permissionMode) this.permissionMode = opts.permissionMode;
-    if (opts?.effort) this.effort = opts.effort;
   }
 
   isInitialized(): boolean {
     return this.initialized;
   }
 
-  getModel(): string {
-    return this.model;
-  }
-
-  getPermissionMode(): string {
-    return this.permissionMode;
-  }
-
-  getEffort(): string {
-    return this.effort;
-  }
-
   getProviderCommands(): CommandInfo[] {
-    const cache = loadProviderCache('claude');
+    const cache = getProviderCache('claude');
     return [
       {
         name: 'model',
@@ -64,7 +46,7 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getSlashCommands(): CommandInfo[] {
-    return (loadProviderCache('claude')?.slashCommands ?? []).map(c => ({
+    return (getProviderCache('claude')?.slashCommands ?? []).map(c => ({
       name: c.name,
       description: c.description,
       argumentHint: c.argumentHint,
@@ -79,7 +61,7 @@ export class ClaudeBackend implements AgentBackend {
     this.permissionHandler = handler;
   }
 
-  private createSdkQuery(prompt: string, opts?: { cwd?: string }): Query {
+  private createSdkQuery(prompt: string, opts: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): Query {
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (!this.permissionHandler) {
         return { behavior: 'allow' as const, updatedInput: input };
@@ -99,26 +81,26 @@ export class ClaudeBackend implements AgentBackend {
     return sdkQuery({
       prompt,
       options: {
-        cwd: opts?.cwd ?? process.cwd(),
+        cwd: opts.cwd ?? process.cwd(),
         canUseTool,
-        model: this.model,
-        permissionMode: this.permissionMode as PermissionMode,
-        effort: this.effort as 'low' | 'medium' | 'high' | 'max',
+        model: opts.model ?? 'opus',
+        permissionMode: (opts.permissionMode ?? 'default') as PermissionMode,
+        effort: (opts.effort ?? 'high') as 'low' | 'medium' | 'high' | 'max',
         abortController: this.abortController,
         ...(this.sessionId ? { resume: this.sessionId } : {}),
       },
     });
   }
 
-  async *query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage> {
-    const generator = this.createSdkQuery(prompt, opts);
+  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage> {
+    const generator = this.createSdkQuery(prompt, opts ?? {});
     this.activeQuery = generator;
 
     const retryWithoutSession = yield* this.processMessages(generator);
     if (retryWithoutSession) {
       yield { type: 'system', content: 'Session expired, starting fresh...' };
       this.sessionId = undefined;
-      const freshGenerator = this.createSdkQuery(prompt, opts);
+      const freshGenerator = this.createSdkQuery(prompt, opts ?? {});
       this.activeQuery = freshGenerator;
       yield* this.processMessages(freshGenerator);
     }
@@ -207,20 +189,17 @@ export class ClaudeBackend implements AgentBackend {
         case 'system': {
           const sysMsg = msg as Record<string, unknown>;
           if (sysMsg.subtype === 'init') {
-            if (sysMsg.model) this.model = String(sysMsg.model);
-            if (sysMsg.permissionMode) this.permissionMode = String(sysMsg.permissionMode);
             if (!this.initialized) {
               this.initialized = true;
               Promise.all([
                 generator.supportedModels().catch(() => []),
                 generator.supportedCommands().catch(() => []),
               ]).then(([models, commands]) => {
-                saveProviderCache('claude', {
+                setProviderCache('claude', {
                   models: models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description })),
                   slashCommands: commands.map(c => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
                   permissionModes: ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'],
                   effortLevels: ['low', 'medium', 'high', 'max'],
-                  cachedAt: new Date().toISOString(),
                 });
               });
               this.onInitCallback?.();
@@ -247,32 +226,18 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   getStatusSegments(): StatusSegment[] {
-    return this.usage.getStatusSegments(this.model, this.permissionMode, this.effort);
+    return this.usage.getStatusSegments();
   }
 
-  async executeCommand(name: string, args: string): Promise<ProviderCommandResult | null> {
-    switch (name) {
-      case 'model':
-        if (!args) return { message: 'Usage: /model <name>' };
-        this.model = args;
-        return { message: `Model set to: ${args}`, updated: { model: args } };
-
-      case 'mode':
-        if (!args) return { message: 'Usage: /mode <mode>' };
-        this.permissionMode = args;
-        if (this.activeQuery) {
-          await this.activeQuery.setPermissionMode(args as PermissionMode);
-        }
-        return { message: `Permission mode set to: ${args}`, updated: { permissionMode: args } };
-
-      case 'effort':
-        if (!args) return { message: 'Usage: /effort <low|medium|high|max>' };
-        this.effort = args;
-        return { message: `Effort set to: ${args}`, updated: { effort: args } };
-
-      default:
-        return null;
+  async setPermissionMode(mode: string): Promise<void> {
+    if (this.activeQuery) {
+      await this.activeQuery.setPermissionMode(mode as PermissionMode);
     }
+  }
+
+  async executeCommand(_name: string, _args: string): Promise<ProviderCommandResult | null> {
+    // model/mode/effort commands are now handled client-side
+    return null;
   }
 
   stop(): void {

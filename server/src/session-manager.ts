@@ -10,7 +10,7 @@ import { logger } from './core/logger.js';
 import { handlePtySpawn, handlePtyInput, handlePtyResize, cleanupPty } from './handlers/pty-handler.js';
 import { handleFolderList, handleServerInfo } from './handlers/folder-handler.js';
 import { handleProjectCreate, handleProjectList } from './handlers/project-handler.js';
-import { handleAgentQuery, handleAgentStop, handleAgentCommand, handlePermissionResponse } from './handlers/agent-handler.js';
+import { handleAgentQuery, handleAgentStop, handleAgentCommand, handlePermissionResponse, handleSetPermissionMode } from './handlers/agent-handler.js';
 
 export interface ProjectSession {
   project: ProjectConfig;
@@ -65,6 +65,11 @@ export class SessionManager {
       case 'permission:response': {
         const session = this.sessions.get(msg.projectId);
         if (session) handlePermissionResponse(session, msg);
+        break;
+      }
+      case 'set:permissionMode': {
+        const session = this.sessions.get(msg.projectId);
+        if (session) handleSetPermissionMode(session, msg);
         break;
       }
       case 'pty:spawn': {

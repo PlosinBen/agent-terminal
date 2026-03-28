@@ -11,7 +11,7 @@ export class GeminiBackend implements AgentBackend {
     this.permissionHandler = handler;
   }
 
-  async *query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage> {
+  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage> {
     const cwd = opts?.cwd ?? process.cwd();
 
     yield { type: 'system', content: 'Starting Gemini CLI...' };
@@ -74,16 +74,8 @@ export class GeminiBackend implements AgentBackend {
     return this.initialized;
   }
 
-  getModel(): string {
-    return 'gemini';
-  }
-
-  getPermissionMode(): string {
-    return 'default';
-  }
-
-  getEffort(): string {
-    return 'medium';
+  async setPermissionMode(_mode: string): Promise<void> {
+    // Gemini CLI doesn't support runtime permission mode changes
   }
 
   getProviderCommands(): CommandInfo[] {

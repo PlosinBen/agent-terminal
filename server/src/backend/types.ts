@@ -21,10 +21,8 @@ export type PermissionHandler = (req: PermissionRequest) => Promise<
 >;
 
 export interface StatusSegment {
-  id?: string;       // interactive segment identifier, e.g. "model", "permissionMode", "effort"
   label?: string;    // optional title, e.g. "5d"
   value: string;     // display content, e.g. "$12.30"
-  rawValue?: string; // command value when different from display value
   color?: string;    // value color, e.g. "cyan"
 }
 
@@ -47,14 +45,12 @@ export interface ModelOption {
 }
 
 export interface AgentBackend {
-  query(prompt: string, opts?: { cwd?: string }): AsyncGenerator<AgentMessage>;
+  query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage>;
   stop(): void;
   setPermissionHandler(handler: PermissionHandler): void;
+  setPermissionMode(mode: string): Promise<void>;
   getStatusSegments(): StatusSegment[];
   isInitialized(): boolean;
-  getModel(): string;
-  getPermissionMode(): string;
-  getEffort(): string;
   getProviderCommands(): CommandInfo[];
   getSlashCommands(): CommandInfo[];
   executeCommand(name: string, args: string): Promise<ProviderCommandResult | null>;

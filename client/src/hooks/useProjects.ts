@@ -134,13 +134,10 @@ export function useProjects(
       }
 
       case 'agent:result':
-        if (msg.sessionId || msg.model || msg.permissionMode || msg.effort) {
+        if (msg.sessionId) {
           onConfigUpdate?.({
             projectId: pid,
             sessionId: msg.sessionId,
-            model: msg.model,
-            permissionMode: msg.permissionMode,
-            effort: msg.effort,
           });
         }
         break;
@@ -191,9 +188,6 @@ export function useProjects(
           role: 'system',
           content: msg.message,
         });
-        if (msg.updated) {
-          onConfigUpdate?.({ projectId: pid, ...msg.updated });
-        }
         rerender();
         break;
     }

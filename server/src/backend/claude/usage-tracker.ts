@@ -1,13 +1,6 @@
 import type { SDKResultSuccess } from '@anthropic-ai/claude-agent-sdk';
 import type { StatusSegment } from '../types.js';
 
-const PERMISSION_MODE_DISPLAY: Record<string, { label: string; color?: string }> = {
-  default: { label: 'Prompt', color: '#ffffff' },
-  acceptEdits: { label: 'AcceptEdits', color: '#e5c07b' },
-  bypassPermissions: { label: 'BypassPermissions', color: '#e06c75' },
-  plan: { label: 'Plan', color: '#56b6c2' },
-  dontAsk: { label: 'AutoDeny' },
-};
 
 interface RateLimitInfo {
   status: string;
@@ -50,7 +43,7 @@ export class UsageTracker {
     }
   }
 
-  getStatusSegments(model: string, permissionMode: string, effort: string): StatusSegment[] {
+  getStatusSegments(): StatusSegment[] {
     const tokens = `${(this.inputTokens / 1000).toFixed(0)}k+${(this.outputTokens / 1000).toFixed(0)}k`;
     const ctxPct = this.contextWindow > 0
       ? `${Math.round((this.contextUsedTokens / this.contextWindow) * 100)}%`
@@ -59,9 +52,6 @@ export class UsageTracker {
       ? (this.contextUsedTokens / this.contextWindow >= 0.8 ? '#e06c75' : this.contextUsedTokens / this.contextWindow >= 0.5 ? '#e5c07b' : undefined)
       : undefined;
     const segments: StatusSegment[] = [
-      { id: 'model', value: model },
-      { id: 'permissionMode', value: (PERMISSION_MODE_DISPLAY[permissionMode]?.label ?? permissionMode), rawValue: permissionMode, color: PERMISSION_MODE_DISPLAY[permissionMode]?.color },
-      { id: 'effort', label: 'effort', value: effort },
       ...(ctxPct ? [{ label: 'ctx', value: ctxPct, color: ctxColor }] : []),
       { value: tokens },
       { value: `$${this.costUsd.toFixed(3)}` },

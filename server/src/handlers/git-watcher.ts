@@ -5,7 +5,7 @@ import { execSync } from 'child_process';
 import { watch, existsSync } from 'fs';
 import path from 'path';
 import { logger } from '../core/logger.js';
-import { loadProviderCache } from '../core/provider-cache.js';
+import { getProviderCache } from '../core/provider-cache.js';
 
 export function getGitBranch(cwd: string): string {
   try {
@@ -53,7 +53,7 @@ export function broadcastStatus(
       ? 'running' as const
       : 'idle' as const;
 
-  const cache = loadProviderCache('claude');
+  const cache = getProviderCache('claude');
   const providerConfig: ProviderConfig | undefined = cache
     ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels }
     : undefined;

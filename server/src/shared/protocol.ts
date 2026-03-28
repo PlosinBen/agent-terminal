@@ -8,6 +8,9 @@ export interface AgentQueryMsg {
   type: 'agent:query';
   projectId: string;
   prompt: string;
+  model?: string;
+  permissionMode?: string;
+  effort?: string;
 }
 
 export interface AgentStopMsg {
@@ -55,9 +58,6 @@ export interface ProjectCreateMsg {
   cwd: string;
   requestId: string;
   sessionId?: string;
-  model?: string;
-  permissionMode?: string;
-  effort?: string;
 }
 
 export interface ProjectListMsg {
@@ -76,6 +76,12 @@ export interface ServerInfoMsg {
   requestId: string;
 }
 
+export interface SetPermissionModeMsg {
+  type: 'set:permissionMode';
+  projectId: string;
+  mode: string;
+}
+
 export type UpstreamMessage =
   | AgentQueryMsg
   | AgentStopMsg
@@ -87,7 +93,8 @@ export type UpstreamMessage =
   | ProjectCreateMsg
   | ProjectListMsg
   | FolderListMsg
-  | ServerInfoMsg;
+  | ServerInfoMsg
+  | SetPermissionModeMsg;
 
 // ── Main → Renderer ──
 
@@ -124,9 +131,6 @@ export interface AgentResultMsg {
   projectId: string;
   content: string;
   sessionId?: string;
-  model?: string;
-  permissionMode?: string;
-  effort?: string;
 }
 
 export interface AgentDoneMsg {
@@ -176,7 +180,7 @@ export interface ProviderConfig {
 export interface StatusUpdateMsg {
   type: 'status:update';
   projectId: string;
-  segments: { id?: string; label?: string; value: string; rawValue?: string; color?: string }[];
+  segments: { label?: string; value: string; color?: string }[];
   agentStatus: 'idle' | 'running' | 'attention';
   gitBranch: string;
   providerConfig?: ProviderConfig;

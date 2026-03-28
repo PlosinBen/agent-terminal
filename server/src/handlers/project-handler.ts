@@ -6,23 +6,16 @@ import { createProject } from '../core/workspace.js';
 import { watchGitHead, broadcastStatus } from './git-watcher.js';
 
 export function handleProjectCreate(
-  msg: { id: string; cwd: string; requestId: string; sessionId?: string; model?: string; permissionMode?: string; effort?: string },
+  msg: { id: string; cwd: string; requestId: string; sessionId?: string },
   send: (reply: DownstreamMessage) => void,
   sessions: Map<string, ProjectSession>,
   wsServer: WsServer | null,
 ): void {
-  // Client owns the project id and config (localStorage is source of truth)
   const project = createProject(msg.id, msg.cwd);
   if (msg.sessionId) project.sessionId = msg.sessionId;
-  if (msg.model) project.model = msg.model;
-  if (msg.permissionMode) project.permissionMode = msg.permissionMode;
-  if (msg.effort) project.effort = msg.effort;
 
   const backend = new ClaudeBackend({
     sessionId: project.sessionId,
-    model: project.model,
-    permissionMode: project.permissionMode,
-    effort: project.effort,
   });
 
   const session: ProjectSession = {
@@ -42,14 +35,8 @@ export function handleProjectCreate(
     if (wsServer) broadcastStatus(session, project.id, wsServer);
   });
 
-  // Update in-memory project config after backend init
+  // Broadcast status after backend init (provider config becomes available)
   backend.onInit(() => {
-    session.project = {
-      ...session.project,
-      model: backend.getModel(),
-      permissionMode: backend.getPermissionMode(),
-      effort: backend.getEffort(),
-    };
     if (wsServer) broadcastStatus(session, project.id, wsServer);
   });
 

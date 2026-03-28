@@ -9,7 +9,7 @@ let permRequestCounter = 0;
 
 export async function handleAgentQuery(
   session: ProjectSession,
-  msg: { projectId: string; prompt: string },
+  msg: { projectId: string; prompt: string; model?: string; permissionMode?: string; effort?: string },
   send: (reply: DownstreamMessage) => void,
   wsServer: WsServer,
 ): Promise<void> {
@@ -36,7 +36,12 @@ export async function handleAgentQuery(
   broadcastStatus(session, msg.projectId, wsServer);
 
   try {
-    const gen = session.backend.query(msg.prompt, { cwd: session.project.cwd });
+    const gen = session.backend.query(msg.prompt, {
+      cwd: session.project.cwd,
+      model: msg.model,
+      permissionMode: msg.permissionMode,
+      effort: msg.effort,
+    });
 
     for await (const agentMsg of gen) {
       if (agentMsg.type === 'text') {
@@ -65,9 +70,6 @@ export async function handleAgentQuery(
           projectId: msg.projectId,
           content: '',
           sessionId: agentMsg.sessionId,
-          model: session.project.model,
-          permissionMode: session.project.permissionMode,
-          effort: session.project.effort,
         });
         if (agentMsg.sessionId) {
           session.project = { ...session.project, sessionId: agentMsg.sessionId };
@@ -114,11 +116,7 @@ export async function handleAgentCommand(
       projectId: msg.projectId,
       requestId: msg.requestId,
       message: providerResult.message,
-      updated: providerResult.updated,
     });
-    if (providerResult.updated) {
-      session.project = { ...session.project, ...providerResult.updated };
-    }
     return;
   }
 
@@ -128,6 +126,13 @@ export async function handleAgentCommand(
     requestId: msg.requestId,
     message: `Unknown command: /${msg.command}`,
   });
+}
+
+export async function handleSetPermissionMode(
+  session: ProjectSession,
+  msg: { mode: string },
+): Promise<void> {
+  await session.backend.setPermissionMode(msg.mode);
 }
 
 export function handlePermissionResponse(

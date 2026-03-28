@@ -264,6 +264,25 @@ export function App() {
 
   const activeState = getState(activeProjectId);
 
+  // Client-side config update for model/mode/effort
+  const updateProjectConfig = useCallback((command: string, args: string) => {
+    if (!activeProjectId) return;
+    const configMap: Record<string, string> = { model: 'model', mode: 'permissionMode', effort: 'effort' };
+    const key = configMap[command];
+    if (!key) return;
+
+    // Update client state
+    handleConfigUpdate({ projectId: activeProjectId, [key]: args });
+
+    // If permissionMode changed while agent is running, notify server for runtime switch
+    if (key === 'permissionMode') {
+      const project = projectsRef.current.find(p => p.id === activeProjectId);
+      if (project?.agentStatus === 'running') {
+        service.sendSetPermissionMode(project, args);
+      }
+    }
+  }, [activeProjectId, handleConfigUpdate, service]);
+
   const handleSubmit = useCallback((text: string) => {
     if (!activeProjectId) return;
     const project = projectsRef.current.find(p => p.id === activeProjectId);
@@ -272,7 +291,16 @@ export function App() {
     if (text.startsWith('/')) {
       const spaceIdx = text.indexOf(' ');
       const command = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
-      const args = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
+      const args = spaceIdx > 0 ? text.slice(spaceIdx + 1).trim() : '';
+
+      // Client-side commands: /model, /mode, /effort
+      if (['model', 'mode', 'effort'].includes(command) && args) {
+        updateProjectConfig(command, args);
+        addUserMessage(activeProjectId, text);
+        return;
+      }
+
+      // Server-side commands
       service.sendCommand(project, command, args);
       addUserMessage(activeProjectId, text);
       return;
@@ -280,7 +308,7 @@ export function App() {
 
     service.sendQuery(project, text);
     addUserMessage(activeProjectId, text);
-  }, [activeProjectId, service, addUserMessage]);
+  }, [activeProjectId, service, addUserMessage, updateProjectConfig]);
 
   const handleStop = useCallback(() => {
     if (!activeProjectId) return;
@@ -303,11 +331,7 @@ export function App() {
   const providerConfig = activeState?.providerConfig ?? null;
   const activeProject = projects.find(p => p.id === activeProjectId);
 
-  const handleStatusCommand = useCallback((command: string, args: string) => {
-    if (!activeProjectId) return;
-    const project = projectsRef.current.find(p => p.id === activeProjectId);
-    if (project) service.sendCommand(project, command, args);
-  }, [activeProjectId, service]);
+
 
   const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
     setProjects(prev => {
@@ -361,7 +385,7 @@ export function App() {
               visible={activeTab === 'terminal'}
               service={service}
             />
-            <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={handleStatusCommand} />
+            <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={updateProjectConfig} />
             {permissionReq && (
               <PermissionPopup req={permissionReq} onRespond={handlePermission} cwd={activeProject?.cwd} />
             )}
