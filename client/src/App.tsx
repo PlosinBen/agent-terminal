@@ -289,13 +289,12 @@ export function App() {
 
     // Client-side app commands
     if (command === 'clear') {
-      // Clear messages handled by addUserMessage + clear action
-      addUserMessage(activeProjectId, '/clear');
+      addUserMessage(activeProjectId, '/clear', false);
       // TODO: implement clear messages in useProjects
       return;
     }
     if (command === 'help') {
-      addUserMessage(activeProjectId, '/help');
+      addUserMessage(activeProjectId, '/help', false);
       return;
     }
 
@@ -307,11 +306,12 @@ export function App() {
       return;
     }
 
-    // Server-side commands (SDK slash commands, etc.)
+    // SDK slash commands — send as query prompt (SDK handles /command internally)
     const project = projectsRef.current.find(p => p.id === activeProjectId);
     if (project) {
-      service.sendCommand(project, command, args);
-      addUserMessage(activeProjectId, `/${command}${args ? ' ' + args : ''}`);
+      const prompt = `/${command}${args ? ' ' + args : ''}`;
+      service.sendQuery(project, prompt);
+      addUserMessage(activeProjectId, prompt);
     }
   }, [activeProjectId, service, addUserMessage, updateProjectConfig]);
 

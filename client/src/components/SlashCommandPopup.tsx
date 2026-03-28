@@ -8,7 +8,7 @@ interface Props {
   selectedIndex: number;
   mode: 'command' | 'argument';
   options?: CommandOption[];
-  onSelect: (index: number) => void;
+  onSelect: (index: number, execute: boolean) => void;
 }
 
 export function SlashCommandPopup({ commands, filter, selectedIndex, mode, options, onSelect }: Props) {
@@ -32,7 +32,7 @@ export function SlashCommandPopup({ commands, filter, selectedIndex, mode, optio
           <div
             key={opt.value}
             className={`slash-item ${i === selectedIndex ? 'slash-item-selected' : ''}`}
-            onMouseDown={(e) => { e.preventDefault(); onSelect(i); }}
+            onMouseDown={(e) => { e.preventDefault(); onSelect(i, true); }}
           >
             <span className="slash-item-name">{opt.value}</span>
             {opt.label !== opt.value && <span className="slash-item-desc">{opt.label}</span>}
@@ -54,7 +54,7 @@ export function SlashCommandPopup({ commands, filter, selectedIndex, mode, optio
         <div
           key={cmd.name}
           className={`slash-item ${i === selectedIndex ? 'slash-item-selected' : ''}`}
-          onMouseDown={(e) => { e.preventDefault(); onSelect(i); }}
+          onMouseDown={(e) => { e.preventDefault(); onSelect(i, true); }}
         >
           <span className="slash-item-name">/{cmd.name}</span>
           <span className="slash-item-desc">{cmd.description}</span>

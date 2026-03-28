@@ -205,14 +205,15 @@ export function useProjects(
       service.on(ServiceEvent.AgentError, handleMsg),
       service.on(ServiceEvent.PermissionRequest, handleMsg),
       service.on(ServiceEvent.StatusUpdate, handleMsg),
+      service.on(ServiceEvent.CommandResult, handleMsg),
     ];
     return () => { for (const unsub of unsubs) unsub(); };
   }, [service, handleMsg]);
 
-  const addUserMessage = useCallback((projectId: string, content: string) => {
+  const addUserMessage = useCallback((projectId: string, content: string, loading = true) => {
     const state = getOrCreate(projectId);
     state.messages.push({ role: 'user', content });
-    state.loading = true;
+    if (loading) state.loading = true;
     rerender();
   }, [getOrCreate, rerender]);
 

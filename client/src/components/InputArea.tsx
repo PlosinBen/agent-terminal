@@ -92,33 +92,44 @@ export function InputArea({ disabled, providerConfig, onSubmit, onStop, onComman
     focusTextarea();
   }, [onCommand, closePopup, focusTextarea]);
 
-  const selectCommand = useCallback((cmd: CommandDef) => {
+  const selectCommand = useCallback((cmd: CommandDef, execute: boolean) => {
     if (cmd.options && cmd.options.length > 0) {
+      // Enter argument mode (both Tab and Enter)
       setPopupMode('argument');
       setSelectedCommand(cmd);
       setSelectedIndex(0);
       setInput(`/${cmd.name} `);
-    } else {
+    } else if (execute) {
       executeCommand(cmd.name, '');
+    } else {
+      // Tab: fill in command text, close popup
+      setInput(`/${cmd.name} `);
+      closePopup();
     }
-  }, [executeCommand]);
+  }, [executeCommand, closePopup]);
 
-  const selectOption = useCallback((opt: CommandOption) => {
+  const selectOption = useCallback((opt: CommandOption, execute: boolean) => {
     if (!selectedCommand) return;
-    executeCommand(selectedCommand.name, opt.value);
-  }, [selectedCommand, executeCommand]);
+    if (execute) {
+      executeCommand(selectedCommand.name, opt.value);
+    } else {
+      // Tab: fill in full command, close popup
+      setInput(`/${selectedCommand.name} ${opt.value}`);
+      closePopup();
+    }
+  }, [selectedCommand, executeCommand, closePopup]);
 
-  const handlePopupSelect = useCallback((index: number) => {
+  const handlePopupSelect = useCallback((index: number, execute: boolean) => {
     if (popupMode === 'command') {
       const filtered = getFilteredCommands(input);
       const cmd = filtered[index];
-      if (cmd) selectCommand(cmd);
+      if (cmd) selectCommand(cmd, execute);
     } else if (popupMode === 'argument' && selectedCommand) {
       const prefix = `/${selectedCommand.name} `;
       const argFilter = input.startsWith(prefix) ? input.slice(prefix.length) : '';
       const filtered = getFilteredOptions(argFilter, selectedCommand.options);
       const opt = filtered[index];
-      if (opt) selectOption(opt);
+      if (opt) selectOption(opt, execute);
     }
   }, [popupMode, input, selectedCommand, getFilteredCommands, getFilteredOptions, selectCommand, selectOption]);
 
@@ -160,9 +171,20 @@ export function InputArea({ disabled, providerConfig, onSubmit, onStop, onComman
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        handlePopupSelect(selectedIndex);
-        return;
+        // Only intercept if there are filtered results to select
+        const count = popupMode === 'command'
+          ? getFilteredCommands(input).length
+          : getFilteredOptions(
+              input.slice(`/${selectedCommand?.name ?? ''} `.length),
+              selectedCommand?.options,
+            ).length;
+        if (count > 0) {
+          e.preventDefault();
+          handlePopupSelect(selectedIndex, e.key === 'Enter');
+          return;
+        }
+        // No matches — close popup and fall through to normal submit
+        closePopup();
       }
     }
 

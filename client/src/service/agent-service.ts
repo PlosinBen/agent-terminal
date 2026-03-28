@@ -241,7 +241,10 @@ export class AgentService {
       case 'pty:exit':
         this.emit(ServiceEvent.PtyExit, msg);
         break;
-      // project:created, folder:list_result, command:result are handled by Promise resolvers
+      case 'command:result':
+        this.emit(ServiceEvent.CommandResult, msg);
+        break;
+      // project:created, folder:list_result are handled by Promise resolvers
       // project:list_result not currently used
     }
   }

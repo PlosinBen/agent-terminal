@@ -15,6 +15,9 @@ export const ServiceEvent = {
   // Permission
   PermissionRequest: 'permission:request',
 
+  // Commands
+  CommandResult: 'command:result',
+
   // Status
   StatusUpdate: 'status:update',
 

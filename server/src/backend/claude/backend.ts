@@ -218,8 +218,14 @@ export class ClaudeBackend implements AgentBackend {
           break;
         }
 
-        default:
+        default: {
+          // Handle SDK-specific message types (compact, etc.)
+          const anyMsg = msg as Record<string, unknown>;
+          if (anyMsg.displayText) {
+            yield { type: 'system', content: String(anyMsg.displayText) };
+          }
           break;
+        }
       }
     }
     return false;
@@ -236,7 +242,7 @@ export class ClaudeBackend implements AgentBackend {
   }
 
   async executeCommand(_name: string, _args: string): Promise<ProviderCommandResult | null> {
-    // model/mode/effort commands are now handled client-side
+    // All commands handled client-side or sent as query prompts
     return null;
   }
 
