@@ -55,7 +55,7 @@ export function broadcastStatus(
 
   const cache = getProviderCache('claude');
   const providerConfig: ProviderConfig | undefined = cache
-    ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels }
+    ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels, slashCommands: cache.slashCommands }
     : undefined;
 
   wsServer.broadcast({

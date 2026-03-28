@@ -175,6 +175,7 @@ export interface ProviderConfig {
   models: { value: string; displayName: string; description: string }[];
   permissionModes: string[];
   effortLevels: string[];
+  slashCommands?: { name: string; description: string; argumentHint: string }[];
 }
 
 export interface StatusUpdateMsg {

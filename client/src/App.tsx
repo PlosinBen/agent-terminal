@@ -283,6 +283,38 @@ export function App() {
     }
   }, [activeProjectId, handleConfigUpdate, service]);
 
+  // Handle all slash commands from InputArea autocomplete or direct typing
+  const handleCommand = useCallback((command: string, args: string) => {
+    if (!activeProjectId) return;
+
+    // Client-side app commands
+    if (command === 'clear') {
+      // Clear messages handled by addUserMessage + clear action
+      addUserMessage(activeProjectId, '/clear');
+      // TODO: implement clear messages in useProjects
+      return;
+    }
+    if (command === 'help') {
+      addUserMessage(activeProjectId, '/help');
+      return;
+    }
+
+    // Client-side config commands
+    if (['model', 'mode', 'effort'].includes(command)) {
+      if (args) {
+        updateProjectConfig(command, args);
+      }
+      return;
+    }
+
+    // Server-side commands (SDK slash commands, etc.)
+    const project = projectsRef.current.find(p => p.id === activeProjectId);
+    if (project) {
+      service.sendCommand(project, command, args);
+      addUserMessage(activeProjectId, `/${command}${args ? ' ' + args : ''}`);
+    }
+  }, [activeProjectId, service, addUserMessage, updateProjectConfig]);
+
   const handleSubmit = useCallback((text: string) => {
     if (!activeProjectId) return;
     const project = projectsRef.current.find(p => p.id === activeProjectId);
@@ -292,23 +324,13 @@ export function App() {
       const spaceIdx = text.indexOf(' ');
       const command = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
       const args = spaceIdx > 0 ? text.slice(spaceIdx + 1).trim() : '';
-
-      // Client-side commands: /model, /mode, /effort
-      if (['model', 'mode', 'effort'].includes(command) && args) {
-        updateProjectConfig(command, args);
-        addUserMessage(activeProjectId, text);
-        return;
-      }
-
-      // Server-side commands
-      service.sendCommand(project, command, args);
-      addUserMessage(activeProjectId, text);
+      handleCommand(command, args);
       return;
     }
 
     service.sendQuery(project, text);
     addUserMessage(activeProjectId, text);
-  }, [activeProjectId, service, addUserMessage, updateProjectConfig]);
+  }, [activeProjectId, service, addUserMessage, handleCommand]);
 
   const handleStop = useCallback(() => {
     if (!activeProjectId) return;
@@ -378,7 +400,7 @@ export function App() {
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
               <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} />
-              <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
+              <InputArea disabled={loading} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>
             <Terminal
               project={activeProject!}

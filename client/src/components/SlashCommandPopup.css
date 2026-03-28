@@ -1,0 +1,42 @@
+.slash-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  z-index: 50;
+}
+
+.slash-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.slash-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.slash-item-selected {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.slash-item-name {
+  color: var(--accent);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.slash-item-desc {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
