@@ -57,7 +57,7 @@ export function App() {
     });
   }, []);
 
-  const { getState, addUserMessage, clearPermission, initProject, removeProject } = useProjects(service, handleConfigUpdate);
+  const { getState, addUserMessage, clearMessages, clearPermission, initProject, removeProject } = useProjects(service, handleConfigUpdate);
 
   const [projects, setProjects] = useState<ProjectInfo[]>(() => {
     return loadSavedProjects().map(p => ({
@@ -291,8 +291,7 @@ export function App() {
 
     // Client-side app commands
     if (command === 'clear') {
-      addUserMessage(activeProjectId, '/clear', false);
-      // TODO: implement clear messages in useProjects
+      clearMessages(activeProjectId);
       return;
     }
     if (command === 'help') {

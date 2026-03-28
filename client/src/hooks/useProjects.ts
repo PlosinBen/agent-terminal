@@ -230,6 +230,14 @@ export function useProjects(
     rerender();
   }, [getOrCreate, rerender]);
 
+  const clearMessages = useCallback((projectId: string) => {
+    const state = stateRef.current.get(projectId);
+    if (state) {
+      state.messages = [];
+      rerender();
+    }
+  }, [rerender]);
+
   const removeProject = useCallback((projectId: string) => {
     stateRef.current.delete(projectId);
     rerender();
@@ -240,5 +248,5 @@ export function useProjects(
     return stateRef.current.get(projectId) ?? null;
   }, []);
 
-  return { getState, addUserMessage, clearPermission, initProject, removeProject };
+  return { getState, addUserMessage, clearMessages, clearPermission, initProject, removeProject };
 }
