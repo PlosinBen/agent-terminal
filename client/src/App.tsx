@@ -346,7 +346,7 @@ export function App() {
         {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
-              <MessageList messages={messages} loading={loading} />
+              <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} />
               <InputArea disabled={loading} onSubmit={handleSubmit} onStop={handleStop} />
             </div>
             <Terminal

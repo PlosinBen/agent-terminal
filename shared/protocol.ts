@@ -112,6 +112,13 @@ export interface AgentToolUseMsg {
   content: string;
 }
 
+export interface AgentToolResultMsg {
+  type: 'agent:tool_result';
+  projectId: string;
+  toolUseId: string;
+  content: string;
+}
+
 export interface AgentResultMsg {
   type: 'agent:result';
   projectId: string;
@@ -207,6 +214,7 @@ export type DownstreamMessage =
   | AgentTextMsg
   | AgentThinkingMsg
   | AgentToolUseMsg
+  | AgentToolResultMsg
   | AgentResultMsg
   | AgentDoneMsg
   | AgentErrorMsg

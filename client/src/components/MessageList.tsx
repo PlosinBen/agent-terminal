@@ -8,6 +8,7 @@ import './MessageList.css';
 interface Props {
   messages: Message[];
   loading: boolean;
+  cwd?: string;
 }
 
 interface Turn {
@@ -35,7 +36,7 @@ function groupIntoTurns(messages: Message[]): Turn[] {
   return turns;
 }
 
-export function MessageList({ messages, loading }: Props) {
+export function MessageList({ messages, loading, cwd }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
 
@@ -52,7 +53,7 @@ export function MessageList({ messages, loading }: Props) {
     });
   }, []);
 
-  const turns = useMemo(() => groupIntoTurns(messages), [messages]);
+  const turns = groupIntoTurns(messages);
 
   function renderMessage(msg: Message, i: number) {
     switch (msg.messageType) {
@@ -74,6 +75,7 @@ export function MessageList({ messages, loading }: Props) {
               msg={msg}
               collapsed={!expanded.has(i)}
               onToggle={() => toggle(i)}
+              cwd={cwd}
             />
           </div>
         );

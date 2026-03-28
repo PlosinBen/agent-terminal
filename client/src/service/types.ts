@@ -7,6 +7,7 @@ export const ServiceEvent = {
   AgentText: 'agent:text',
   AgentThinking: 'agent:thinking',
   AgentToolUse: 'agent:tool_use',
+  AgentToolResult: 'agent:tool_result',
   AgentResult: 'agent:result',
   AgentDone: 'agent:done',
   AgentError: 'agent:error',

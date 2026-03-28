@@ -5,6 +5,7 @@ export interface Message {
   toolName?: string;
   toolUseId?: string;
   toolInput?: Record<string, unknown>;
+  toolResult?: string;
   collapsible?: boolean;
 }
 

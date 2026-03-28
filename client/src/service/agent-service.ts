@@ -206,6 +206,9 @@ export class AgentService {
       case 'agent:tool_use':
         this.emit(ServiceEvent.AgentToolUse, msg);
         break;
+      case 'agent:tool_result':
+        this.emit(ServiceEvent.AgentToolResult, msg);
+        break;
       case 'agent:result':
         this.emit(ServiceEvent.AgentResult, msg);
         break;

@@ -152,6 +152,26 @@ export class ClaudeBackend implements AgentBackend {
           break;
         }
 
+        case 'user': {
+          const userContent = (msg as Record<string, unknown>).message as { content?: unknown[] } | undefined;
+          if (Array.isArray(userContent?.content)) {
+            for (const block of userContent.content) {
+              const b = block as Record<string, unknown>;
+              if (b.type === 'tool_result') {
+                const resultContent = typeof b.content === 'string'
+                  ? b.content
+                  : JSON.stringify(b.content ?? '');
+                yield {
+                  type: 'tool_result',
+                  content: resultContent.slice(0, 5000),
+                  toolUseId: String(b.tool_use_id || ''),
+                };
+              }
+            }
+          }
+          break;
+        }
+
         case 'result': {
           const result = msg as SDKResultSuccess | SDKResultError;
           if (result.subtype === 'success') {

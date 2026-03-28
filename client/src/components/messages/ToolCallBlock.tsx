@@ -5,24 +5,38 @@ interface Props {
   msg: Message;
   collapsed: boolean;
   onToggle: () => void;
+  cwd?: string;
 }
 
 function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max) + '...' : str;
 }
 
-function getToolSummary(toolName: string, input: Record<string, unknown>): string {
+function stripCwd(path: string, cwd?: string): string {
+  if (!cwd) return path;
+  const prefix = cwd.endsWith('/') ? cwd : cwd + '/';
+  return path.startsWith(prefix) ? path.slice(prefix.length) : path;
+}
+
+function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: string): string {
   switch (toolName) {
     case 'Bash':
       return truncate(String(input.command || ''), 80);
     case 'Edit':
     case 'Write':
-    case 'Read':
-      return String(input.file_path || '');
+      return stripCwd(String(input.file_path || ''), cwd);
+    case 'Read': {
+      const rp = stripCwd(String(input.file_path || ''), cwd);
+      const offset = input.offset as number | undefined;
+      const limit = input.limit as number | undefined;
+      if (offset && limit) return `${rp}: #${offset} - #${offset + limit}`;
+      if (limit) return `${rp}: #1 - #${limit}`;
+      return rp;
+    }
     case 'Glob':
       return String(input.pattern || '');
     case 'Grep':
-      return `${input.pattern || ''} ${input.path ? `in ${input.path}` : ''}`.trim();
+      return `${input.pattern || ''} ${input.path ? `in ${stripCwd(String(input.path), cwd)}` : ''}`.trim();
     case 'Task':
       return truncate(String(input.description || input.prompt || ''), 80);
     case 'TodoWrite':
@@ -37,8 +51,8 @@ function BashContent() {
   return null;
 }
 
-function EditContent({ input }: { input: Record<string, unknown> }) {
-  const filePath = String(input.file_path || '');
+function EditContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
+  const filePath = stripCwd(String(input.file_path || ''), cwd);
   const oldStr = String(input.old_string || '');
   const newStr = String(input.new_string || '');
 
@@ -63,8 +77,8 @@ function EditContent({ input }: { input: Record<string, unknown> }) {
   );
 }
 
-function WriteContent({ input }: { input: Record<string, unknown> }) {
-  const filePath = String(input.file_path || '');
+function WriteContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
+  const filePath = stripCwd(String(input.file_path || ''), cwd);
   const content = String(input.content || '');
   const lines = content.split('\n');
   const truncated = lines.length > 20;
@@ -88,10 +102,15 @@ function WriteContent({ input }: { input: Record<string, unknown> }) {
   );
 }
 
-function ReadContent({ input }: { input: Record<string, unknown> }) {
+function ReadContent({ input, cwd, result }: { input: Record<string, unknown>; cwd?: string; result?: string }) {
+  if (!result) return null;
+  const lines = result.split('\n');
+  const truncated = lines.length > 30;
+  const displayLines = truncated ? lines.slice(0, 30) : lines;
+
   return (
     <div className="tool-content">
-      <div className="tool-file-path">{String(input.file_path || '')}</div>
+      <pre className="tool-code">{displayLines.join('\n')}{truncated ? `\n... +${lines.length - 30} more lines` : ''}</pre>
     </div>
   );
 }
@@ -104,11 +123,11 @@ function GlobContent({ input }: { input: Record<string, unknown> }) {
   );
 }
 
-function GrepContent({ input }: { input: Record<string, unknown> }) {
+function GrepContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
   return (
     <div className="tool-content">
       <pre className="tool-code">{String(input.pattern || '')}</pre>
-      {input.path && <div className="tool-file-path">in {String(input.path)}</div>}
+      {input.path && <div className="tool-file-path">in {stripCwd(String(input.path), cwd)}</div>}
     </div>
   );
 }
@@ -154,25 +173,26 @@ function GenericContent({ input }: { input: Record<string, unknown> }) {
   );
 }
 
-function renderToolBody(toolName: string, input: Record<string, unknown>) {
+function renderToolBody(toolName: string, input: Record<string, unknown>, cwd?: string, result?: string) {
   switch (toolName) {
     case 'Bash': return <BashContent />;
-    case 'Edit': return <EditContent input={input} />;
-    case 'Write': return <WriteContent input={input} />;
-    case 'Read': return <ReadContent input={input} />;
+    case 'Edit': return <EditContent input={input} cwd={cwd} />;
+    case 'Write': return <WriteContent input={input} cwd={cwd} />;
+    case 'Read': return <ReadContent input={input} cwd={cwd} result={result} />;
     case 'Glob': return <GlobContent input={input} />;
-    case 'Grep': return <GrepContent input={input} />;
+    case 'Grep': return <GrepContent input={input} cwd={cwd} />;
     case 'Task': return <TaskContent input={input} />;
     case 'TodoWrite': return <TodoContent input={input} />;
     default: return <GenericContent input={input} />;
   }
 }
 
-export function ToolCallBlock({ msg, collapsed, onToggle }: Props) {
+export function ToolCallBlock({ msg, collapsed, onToggle, cwd }: Props) {
   const toolName = msg.toolName || 'unknown';
   const input = msg.toolInput || {};
-  const summary = getToolSummary(toolName, input);
-  const hasBody = toolName !== 'Bash';
+  const result = msg.toolResult;
+  const summary = getToolSummary(toolName, input, cwd);
+  const hasBody = toolName === 'Read' ? !!result : toolName !== 'Bash';
 
   return (
     <div className="tool-block">
@@ -181,7 +201,7 @@ export function ToolCallBlock({ msg, collapsed, onToggle }: Props) {
         <span className="tool-name">{toolName}</span>
         {summary && <span className="tool-summary">{summary}</span>}
       </div>
-      {hasBody && !collapsed && renderToolBody(toolName, input)}
+      {hasBody && !collapsed && renderToolBody(toolName, input, cwd, result)}
     </div>
   );
 }

@@ -52,6 +52,13 @@ export async function handleAgentQuery(
           toolInput: agentMsg.toolInput || {},
           content: agentMsg.content,
         });
+      } else if (agentMsg.type === 'tool_result') {
+        send({
+          type: 'agent:tool_result',
+          projectId: msg.projectId,
+          toolUseId: agentMsg.toolUseId || '',
+          content: agentMsg.content,
+        });
       } else if (agentMsg.type === 'result') {
         send({
           type: 'agent:result',

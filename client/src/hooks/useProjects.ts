@@ -118,6 +118,19 @@ export function useProjects(
         rerender();
         break;
 
+      case 'agent:tool_result': {
+        // Find matching tool_use message by toolUseId and attach result
+        for (let j = state.messages.length - 1; j >= 0; j--) {
+          const m = state.messages[j];
+          if (m.toolUseId === msg.toolUseId) {
+            state.messages[j] = { ...m, toolResult: msg.content };
+            break;
+          }
+        }
+        rerender();
+        break;
+      }
+
       case 'agent:result':
         if (msg.sessionId || msg.model || msg.permissionMode || msg.effort) {
           onConfigUpdate?.({
@@ -187,6 +200,7 @@ export function useProjects(
       service.on(ServiceEvent.AgentText, handleMsg),
       service.on(ServiceEvent.AgentThinking, handleMsg),
       service.on(ServiceEvent.AgentToolUse, handleMsg),
+      service.on(ServiceEvent.AgentToolResult, handleMsg),
       service.on(ServiceEvent.AgentResult, handleMsg),
       service.on(ServiceEvent.AgentDone, handleMsg),
       service.on(ServiceEvent.AgentError, handleMsg),
