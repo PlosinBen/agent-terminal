@@ -294,10 +294,6 @@ export function App() {
       clearMessages(activeProjectId);
       return;
     }
-    if (command === 'help') {
-      addUserMessage(activeProjectId, '/help', false);
-      return;
-    }
 
     // Client-side config commands
     if (['model', 'mode', 'effort'].includes(command)) {

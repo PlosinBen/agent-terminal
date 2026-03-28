@@ -14,7 +14,6 @@ export interface CommandDef {
 
 const APP_COMMANDS: CommandDef[] = [
   { name: 'clear', description: 'Clear screen', argumentHint: '' },
-  { name: 'help', description: 'Show help', argumentHint: '' },
 ];
 
 const PERMISSION_MODE_LABELS: Record<string, string> = {
@@ -50,7 +49,7 @@ export function buildCommandList(providerConfig?: ProviderConfig | null): Comman
 
     if (providerConfig.slashCommands) {
       // Filter out commands already handled client-side
-      const clientHandled = new Set(['model', 'mode', 'effort', 'clear', 'help']);
+      const clientHandled = new Set(['model', 'mode', 'effort', 'clear']);
       for (const cmd of providerConfig.slashCommands) {
         if (clientHandled.has(cmd.name)) continue;
         commands.push({
