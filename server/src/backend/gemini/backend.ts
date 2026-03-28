@@ -11,7 +11,7 @@ export class GeminiBackend implements AgentBackend {
     this.permissionHandler = handler;
   }
 
-  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage> {
+  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string; images?: string[] }): AsyncGenerator<AgentMessage> {
     const cwd = opts?.cwd ?? process.cwd();
 
     yield { type: 'system', content: 'Starting Gemini CLI...' };

@@ -98,7 +98,7 @@ export class AgentService {
   }
 
   /** Send an agent query (streaming — results come via events). */
-  sendQuery(project: ProjectInfo, prompt: string): void {
+  sendQuery(project: ProjectInfo, prompt: string, images?: string[]): void {
     this.cm.send(project.serverHost, {
       type: 'agent:query',
       projectId: project.id,
@@ -106,6 +106,7 @@ export class AgentService {
       model: project.model,
       permissionMode: project.permissionMode,
       effort: project.effort,
+      ...(images?.length ? { images } : {}),
     });
   }
 

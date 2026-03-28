@@ -4,6 +4,18 @@ import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, Comm
 import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { UsageTracker } from './usage-tracker.js';
 
+function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | null {
+  const match = dataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+  if (!match) return null;
+  const base64 = match[2];
+  // Skip images > 20MB base64 to avoid API rejection
+  if (base64.length > 20 * 1024 * 1024) return null;
+  return {
+    type: 'image',
+    source: { type: 'base64', media_type: match[1], data: base64 },
+  };
+}
+
 export class ClaudeBackend implements AgentBackend {
   private permissionHandler: PermissionHandler | null = null;
   private sessionId: string | undefined;
@@ -110,7 +122,7 @@ export class ClaudeBackend implements AgentBackend {
     }
   }
 
-  private createSdkQuery(prompt: string, opts: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): Query {
+  private createSdkQuery(prompt: string, opts: { cwd?: string; model?: string; permissionMode?: string; effort?: string; images?: string[] }): Query {
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (!this.permissionHandler) {
         return { behavior: 'allow' as const, updatedInput: input };
@@ -127,8 +139,31 @@ export class ClaudeBackend implements AgentBackend {
     };
 
     this.abortController = new AbortController();
+
+    // Build prompt: if images attached, use async generator with content blocks
+    let promptArg: unknown = prompt || ' ';
+    if (opts.images?.length) {
+      const imageBlocks = opts.images
+        .map(dataUrl => dataUrlToContentBlock(dataUrl))
+        .filter(Boolean) as Array<{ type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>;
+      if (imageBlocks.length > 0) {
+        const contentBlocks = [
+          ...imageBlocks,
+          ...(prompt ? [{ type: 'text' as const, text: prompt }] : []),
+        ];
+        const userMessage = {
+          type: 'user' as const,
+          message: { role: 'user' as const, content: contentBlocks },
+        };
+        async function* singleMessage() {
+          yield userMessage;
+        }
+        promptArg = singleMessage();
+      }
+    }
+
     return sdkQuery({
-      prompt,
+      prompt: promptArg as Parameters<typeof sdkQuery>[0]['prompt'],
       options: {
         cwd: opts.cwd ?? process.cwd(),
         canUseTool,
@@ -141,7 +176,7 @@ export class ClaudeBackend implements AgentBackend {
     });
   }
 
-  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage> {
+  async *query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string; images?: string[] }): AsyncGenerator<AgentMessage> {
     const generator = this.createSdkQuery(prompt, opts ?? {});
     this.activeQuery = generator;
 

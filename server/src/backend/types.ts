@@ -45,7 +45,7 @@ export interface ModelOption {
 }
 
 export interface AgentBackend {
-  query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string }): AsyncGenerator<AgentMessage>;
+  query(prompt: string, opts?: { cwd?: string; model?: string; permissionMode?: string; effort?: string; images?: string[] }): AsyncGenerator<AgentMessage>;
   stop(): void;
   setPermissionHandler(handler: PermissionHandler): void;
   setPermissionMode(mode: string): Promise<void>;

@@ -35,3 +35,35 @@
 .input-field::placeholder {
   color: var(--text-secondary);
 }
+
+/* ── Image badge ── */
+
+.image-badge {
+  position: absolute;
+  top: -24px;
+  left: 12px;
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.image-badge-clear {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1em;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.image-badge-clear:hover {
+  color: var(--text-primary);
+}

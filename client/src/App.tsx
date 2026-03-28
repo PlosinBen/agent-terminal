@@ -315,7 +315,7 @@ export function App() {
     }
   }, [activeProjectId, service, addUserMessage, updateProjectConfig]);
 
-  const handleSubmit = useCallback((text: string) => {
+  const handleSubmit = useCallback((text: string, images?: string[]) => {
     if (!activeProjectId) return;
     const project = projectsRef.current.find(p => p.id === activeProjectId);
     if (!project) return;
@@ -328,8 +328,9 @@ export function App() {
       return;
     }
 
-    service.sendQuery(project, text);
-    addUserMessage(activeProjectId, text);
+    service.sendQuery(project, text, images);
+    const label = images?.length ? `${text || ''} [${images.length} image${images.length > 1 ? 's' : ''}]` : text;
+    addUserMessage(activeProjectId, label);
   }, [activeProjectId, service, addUserMessage, handleCommand]);
 
   const handleStop = useCallback(() => {
@@ -400,7 +401,7 @@ export function App() {
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
               <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} />
-              <InputArea disabled={loading} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
+              <InputArea disabled={loading} cwd={activeProject?.cwd} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>
             <Terminal
               project={activeProject!}

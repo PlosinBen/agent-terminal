@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent, type ClipboardEvent } from 'react';
 import type { ProviderConfig } from '../types/message';
 import { buildCommandList, type CommandDef, type CommandOption } from '../commands';
 import { SlashCommandPopup } from './SlashCommandPopup';
@@ -6,14 +6,16 @@ import './InputArea.css';
 
 interface Props {
   disabled: boolean;
+  cwd?: string;
   providerConfig?: ProviderConfig | null;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, images?: string[]) => void;
   onStop: () => void;
   onCommand: (command: string, args: string) => void;
 }
 
-export function InputArea({ disabled, providerConfig, onSubmit, onStop, onCommand }: Props) {
+export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onCommand }: Props) {
   const [input, setInput] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Popup state
@@ -191,14 +193,34 @@ export function InputArea({ disabled, providerConfig, onSubmit, onStop, onComman
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       const trimmed = input.trim();
-      if (trimmed && !disabled) {
-        onSubmit(trimmed);
+      if ((trimmed || images.length > 0) && !disabled) {
+        onSubmit(trimmed, images.length > 0 ? images : undefined);
         setInput('');
+        setImages([]);
         closePopup();
         focusTextarea();
       }
     }
   }, [input, disabled, showPopup, popupMode, selectedIndex, selectedCommand, onSubmit, onStop, closePopup, getFilteredCommands, getFilteredOptions, handlePopupSelect]);
+
+  const handlePaste = useCallback((e: ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+
+    e.preventDefault();
+    for (const item of imageItems) {
+      const file = item.getAsFile();
+      if (!file) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImages(prev => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
 
   const popupFilter = popupMode === 'command'
     ? (input.startsWith('/') ? input.slice(1) : '')
@@ -216,12 +238,19 @@ export function InputArea({ disabled, providerConfig, onSubmit, onStop, onComman
           onSelect={handlePopupSelect}
         />
       )}
+      {images.length > 0 && (
+        <div className="image-badge">
+          {images.length} image{images.length > 1 ? 's' : ''} attached
+          <button className="image-badge-clear" onClick={() => setImages([])}>×</button>
+        </div>
+      )}
       <span className="input-prompt">&gt;</span>
       <textarea
         ref={textareaRef}
         className="input-field"
         value={input}
         onChange={(e) => handleChange(e.target.value)}
+        onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         placeholder={disabled ? 'Agent is running... (Esc to stop)' : 'Ask something...'}
         rows={1}

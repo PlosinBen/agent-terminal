@@ -9,7 +9,7 @@ let permRequestCounter = 0;
 
 export async function handleAgentQuery(
   session: ProjectSession,
-  msg: { projectId: string; prompt: string; model?: string; permissionMode?: string; effort?: string },
+  msg: { projectId: string; prompt: string; model?: string; permissionMode?: string; effort?: string; images?: string[] },
   send: (reply: DownstreamMessage) => void,
   wsServer: WsServer,
 ): Promise<void> {
@@ -41,6 +41,7 @@ export async function handleAgentQuery(
       model: msg.model,
       permissionMode: msg.permissionMode,
       effort: msg.effort,
+      images: msg.images,
     });
 
     for await (const agentMsg of gen) {

@@ -11,6 +11,7 @@ export interface AgentQueryMsg {
   model?: string;
   permissionMode?: string;
   effort?: string;
+  images?: string[];
 }
 
 export interface AgentStopMsg {
