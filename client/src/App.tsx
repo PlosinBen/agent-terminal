@@ -26,6 +26,8 @@ declare global {
 }
 
 const DEFAULT_SERVER_HOST = window.electronAPI ? 'localhost:9100' : location.host;
+const TABS = ['agent', 'terminal'] as const;
+type Tab = typeof TABS[number];
 
 export function App() {
   const service = useService();
@@ -69,7 +71,7 @@ export function App() {
   });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [activeTab, setActiveTab] = useState<'agent' | 'terminal'>('agent');
+  const [activeTab, setActiveTab] = useState<Tab>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
 
   const keybindings = useMemo(() => loadKeybindings(), []);
@@ -237,6 +239,19 @@ export function App() {
     window.electronAPI?.revealInFinder(cwd);
   }, []);
 
+  const isConnected = () => {
+    const p = projectsRef.current.find(p => p.id === activeRef.current);
+    return p?.connectionStatus === 'connected' || p?.connectionStatus === 'reconnecting';
+  };
+
+  const switchTab = (direction: 1 | -1) => {
+    if (!isConnected()) return;
+    setActiveTab(t => {
+      const idx = TABS.indexOf(t);
+      return TABS[(idx + direction + TABS.length) % TABS.length];
+    });
+  };
+
   // App-scope keyboard shortcuts (only active when no modal is open)
   useKeyboardScope('app', useMemo(() => ({
     [keybindings.toggleSidebar]: () => setSidebarVisible(v => !v),
@@ -255,9 +270,9 @@ export function App() {
       const id = list[(idx - 1 + list.length) % list.length].id;
       setActiveProjectId(id);
     },
-    [keybindings.toggleTerminal]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
-    [keybindings.nextTab]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
-    [keybindings.prevTab]: () => setActiveTab(t => t === 'agent' ? 'terminal' : 'agent'),
+    [keybindings.toggleTerminal]: () => switchTab(1),
+    [keybindings.nextTab]: () => switchTab(1),
+    [keybindings.prevTab]: () => switchTab(-1),
     [keybindings.closeProject]: () => {
       const pid = activeRef.current;
       if (pid) closeProject(pid);
