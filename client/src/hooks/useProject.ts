@@ -80,6 +80,13 @@ export function useProject(
           });
           break;
 
+        case 'agent:system':
+          setMessages(prev => [
+            ...prev,
+            { role: 'system', content: msg.content, messageType: 'compact' },
+          ]);
+          break;
+
         case 'command:result':
           setMessages(prev => [
             ...prev,

@@ -1,7 +1,7 @@
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
-  messageType?: 'text' | 'thinking' | 'tool_use' | 'result' | 'error';
+  messageType?: 'text' | 'thinking' | 'tool_use' | 'result' | 'error' | 'compact';
   toolName?: string;
   toolUseId?: string;
   toolInput?: Record<string, unknown>;

@@ -144,6 +144,12 @@ export interface AgentErrorMsg {
   error: string;
 }
 
+export interface AgentSystemMsg {
+  type: 'agent:system';
+  projectId: string;
+  content: string;
+}
+
 export interface PermissionRequestMsg {
   type: 'permission:request';
   projectId: string;
@@ -230,6 +236,7 @@ export type DownstreamMessage =
   | AgentResultMsg
   | AgentDoneMsg
   | AgentErrorMsg
+  | AgentSystemMsg
   | PermissionRequestMsg
   | PtySpawnedMsg
   | PtyOutputMsg

@@ -8,6 +8,18 @@
   gap: 0;
 }
 
+/* ── Empty state ── */
+
+.message-list-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  font-size: 0.9em;
+}
+
 /* ── Turn ── */
 
 .turn {
@@ -55,6 +67,28 @@
 .msg-user .msg-label { color: var(--accent); }
 .msg-system .msg-label { color: #e5c07b; }
 .msg-error .msg-label { color: #e06c75; }
+
+/* ── Compact divider ── */
+
+.msg-compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  font-size: 0.8em;
+}
+
+.msg-compact-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.msg-compact-text {
+  white-space: nowrap;
+  opacity: 0.7;
+}
 
 .msg-loading {
   color: var(--text-secondary);

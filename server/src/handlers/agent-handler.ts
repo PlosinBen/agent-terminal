@@ -64,6 +64,8 @@ export async function handleAgentQuery(
           toolUseId: agentMsg.toolUseId || '',
           content: agentMsg.content,
         });
+      } else if (agentMsg.type === 'system') {
+        send({ type: 'agent:system', projectId: msg.projectId, content: agentMsg.content });
       } else if (agentMsg.type === 'result') {
         send({
           type: 'agent:result',

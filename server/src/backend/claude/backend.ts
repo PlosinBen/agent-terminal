@@ -271,7 +271,9 @@ export class ClaudeBackend implements AgentBackend {
           // Handle SDK-specific message types (compact, etc.)
           const anyMsg = msg as Record<string, unknown>;
           if (anyMsg.displayText) {
-            yield { type: 'system', content: String(anyMsg.displayText) };
+            // Strip ANSI escape codes from SDK display text
+            const clean = String(anyMsg.displayText).replace(/\x1b\[[0-9;]*m/g, '');
+            yield { type: 'system', content: clean };
           }
           break;
         }

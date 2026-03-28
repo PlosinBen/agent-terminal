@@ -12,28 +12,40 @@ interface Props {
 }
 
 interface Turn {
+  kind: 'turn';
   user?: { msg: Message; index: number };
   responses: { msg: Message; index: number }[];
 }
 
-function groupIntoTurns(messages: Message[]): Turn[] {
-  const turns: Turn[] = [];
+interface Divider {
+  kind: 'divider';
+  msg: Message;
+  index: number;
+}
+
+type TurnOrDivider = Turn | Divider;
+
+function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
+  const groups: TurnOrDivider[] = [];
   let current: Turn | null = null;
 
   messages.forEach((msg, i) => {
-    if (msg.role === 'user') {
-      current = { user: { msg, index: i }, responses: [] };
-      turns.push(current);
+    if (msg.messageType === 'compact') {
+      current = null;
+      groups.push({ kind: 'divider', msg, index: i });
+    } else if (msg.role === 'user') {
+      current = { kind: 'turn', user: { msg, index: i }, responses: [] };
+      groups.push(current);
     } else {
       if (!current) {
-        current = { responses: [] };
-        turns.push(current);
+        current = { kind: 'turn', responses: [] };
+        groups.push(current);
       }
       current.responses.push({ msg, index: i });
     }
   });
 
-  return turns;
+  return groups;
 }
 
 export function MessageList({ messages, loading, cwd }: Props) {
@@ -97,6 +109,15 @@ export function MessageList({ messages, loading, cwd }: Props) {
           </div>
         );
 
+      case 'compact':
+        return (
+          <div key={i} className="msg-compact">
+            <span className="msg-compact-line" />
+            <span className="msg-compact-text">{msg.content}</span>
+            <span className="msg-compact-line" />
+          </div>
+        );
+
       default: {
         if (msg.role === 'assistant') {
           return (
@@ -118,22 +139,33 @@ export function MessageList({ messages, loading, cwd }: Props) {
     }
   }
 
+  const isEmpty = messages.length === 0 && !loading;
+
   return (
     <div className="message-list" ref={listRef}>
-      {turns.map((turn, ti) => (
-        <div key={ti} className="turn">
-          {turn.user && (
-            <div className="msg msg-user">
-              <span className="msg-content">{turn.user.msg.content}</span>
-            </div>
-          )}
-          {turn.responses.length > 0 && (
-            <div className="turn-agent">
-              {turn.responses.map(({ msg, index }) => renderMessage(msg, index))}
-            </div>
-          )}
+      {isEmpty && (
+        <div className="message-list-empty">
+          Say something to get the AI working for you.
         </div>
-      ))}
+      )}
+      {turns.map((item, ti) =>
+        item.kind === 'divider' ? (
+          renderMessage(item.msg, item.index)
+        ) : (
+          <div key={ti} className="turn">
+            {item.user && (
+              <div className="msg msg-user">
+                <span className="msg-content">{item.user.msg.content}</span>
+              </div>
+            )}
+            {item.responses.length > 0 && (
+              <div className="turn-agent">
+                {item.responses.map(({ msg, index }) => renderMessage(msg, index))}
+              </div>
+            )}
+          </div>
+        )
+      )}
       {loading && (
         <div className="turn">
           <div className="turn-agent">
