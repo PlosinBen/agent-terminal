@@ -33,7 +33,19 @@ client/ (Vite + React)          shared/
 - **多專案管理** — Sidebar 切換、FolderPicker 選擇專案目錄
 - **內嵌終端機** — PTY Terminal（node-pty），Agent / Terminal 雙 tab 切換
 - **鍵盤操作** — 可自訂快捷鍵，scope-based keyboard 管理
-- **遠端連線** — 支援連接多個 remote server
+
+## 安裝
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/PlosinBen/agent-terminal/main/install.sh | bash
+```
+
+macOS 首次開啟需解除 Gatekeeper 限制：
+```bash
+xattr -cr "/Applications/Agent Terminal.app"
+```
+
+啟動時會自動檢查更新，下載完成後於下次啟動時套用。
 
 ## 開發
 

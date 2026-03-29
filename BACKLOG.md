@@ -11,3 +11,7 @@ Features that are not critical but would improve the experience.
 ## Input
 
 - **File path paste**: When pasting files from Finder/IDE into the textarea, convert to relative file paths (strip project cwd prefix). Currently blocked by clipboard limitations — Electron `File.path` is undefined for IDE-copied files, and `text/uri-list` is not used by all apps.
+
+## Server 模式
+
+- **認證機制**：Server 模式目前無認證，僅限 localhost 使用。需加入認證（token / password）後才能安全地暴露至外部網路，支援遠端連線使用場景。
