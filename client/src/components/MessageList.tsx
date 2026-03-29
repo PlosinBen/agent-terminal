@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { Message } from '../types/message';
+import type { AppSettings } from '../settings';
 import { MarkdownBlock } from './messages/MarkdownBlock';
 import { ThinkingBlock } from './messages/ThinkingBlock';
 import { ToolCallBlock } from './messages/ToolCallBlock';
@@ -9,6 +10,7 @@ interface Props {
   messages: Message[];
   loading: boolean;
   cwd?: string;
+  display: AppSettings['display'];
 }
 
 interface Turn {
@@ -48,11 +50,12 @@ function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
   return groups;
 }
 
-export function MessageList({ messages, loading, cwd }: Props) {
+export function MessageList({ messages, loading, cwd, display }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
-  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  // Track indices the user has manually toggled (overrides display defaults)
+  const [toggled, setToggled] = useState<Set<number>>(() => new Set());
 
   // Track whether user is scrolled to the bottom
   useEffect(() => {
@@ -74,7 +77,7 @@ export function MessageList({ messages, loading, cwd }: Props) {
   });
 
   const toggle = useCallback((index: number) => {
-    setExpanded(prev => {
+    setToggled(prev => {
       const next = new Set(prev);
       if (next.has(index)) next.delete(index);
       else next.add(index);
@@ -82,27 +85,42 @@ export function MessageList({ messages, loading, cwd }: Props) {
     });
   }, []);
 
+  function getDisplayMode(msg: Message): AppSettings['display'][keyof AppSettings['display']] {
+    if (msg.messageType === 'thinking') return display.thinking;
+    const toolName = msg.toolName as keyof AppSettings['display'] | undefined;
+    if (toolName && toolName in display) return display[toolName];
+    return display.other;
+  }
+
+  function isCollapsed(msg: Message, index: number): boolean {
+    const defaultCollapsed = getDisplayMode(msg) !== 'expanded';
+    // If user manually toggled, flip the default
+    return toggled.has(index) ? !defaultCollapsed : defaultCollapsed;
+  }
+
   const turns = groupIntoTurns(messages);
 
   function renderMessage(msg: Message, i: number) {
     switch (msg.messageType) {
       case 'thinking':
+        if (getDisplayMode(msg) === 'hidden') return null;
         return (
           <div key={i} className="msg">
             <ThinkingBlock
               content={msg.content}
-              collapsed={!expanded.has(i)}
+              collapsed={isCollapsed(msg, i)}
               onToggle={() => toggle(i)}
             />
           </div>
         );
 
       case 'tool_use':
+        if (getDisplayMode(msg) === 'hidden') return null;
         return (
           <div key={i} className="msg">
             <ToolCallBlock
               msg={msg}
-              collapsed={!expanded.has(i)}
+              collapsed={isCollapsed(msg, i)}
               onToggle={() => toggle(i)}
               cwd={cwd}
             />

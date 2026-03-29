@@ -4,9 +4,10 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import type { AgentService } from '../service/agent-service';
 import type { ProjectInfo } from '../types/project';
+import type { AppSettings } from '../settings';
 import { ServiceEvent } from '../service/types';
 
-export function useTerminal(project: ProjectInfo, visible: boolean, service: AgentService) {
+export function useTerminal(project: ProjectInfo, visible: boolean, service: AgentService, appearance: AppSettings['appearance']) {
   const containerRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -67,15 +68,15 @@ export function useTerminal(project: ProjectInfo, visible: boolean, service: Age
     }
 
     const term = new XTerm({
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
+      fontFamily: appearance.terminalFontFamily,
+      fontSize: appearance.terminalFontSize,
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',
         cursor: '#d4d4d4',
         selectionBackground: '#264f78',
       },
-      cursorBlink: true,
+      cursorBlink: appearance.terminalCursorBlink,
     });
 
     const fitAddon = new FitAddon();
@@ -136,6 +137,19 @@ export function useTerminal(project: ProjectInfo, visible: boolean, service: Age
       xtermRef.current?.focus();
     });
   }, [visible]);
+
+  // Live-update terminal options when appearance changes
+  useEffect(() => {
+    const term = xtermRef.current;
+    if (!term) return;
+    term.options.fontSize = appearance.terminalFontSize;
+    term.options.fontFamily = appearance.terminalFontFamily;
+    term.options.cursorBlink = appearance.terminalCursorBlink;
+    fitAddonRef.current?.fit();
+    if (xtermRef.current) {
+      serviceRef.current.resizePty(projectRef.current, xtermRef.current.cols, xtermRef.current.rows);
+    }
+  }, [appearance.terminalFontSize, appearance.terminalFontFamily, appearance.terminalCursorBlink]);
 
   return { containerRef, status, hasOutput, connected };
 }

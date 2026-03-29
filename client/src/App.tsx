@@ -11,6 +11,7 @@ import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { Terminal } from './components/Terminal';
 import { loadKeybindings, formatBinding, type KeybindingConfig } from './keybindings';
+import { loadSettings, type AppSettings } from './settings';
 import { SettingsPanel } from './components/SettingsPanel';
 import { keyboard } from './services/keyboard';
 import { useKeyboardScope } from './hooks/useKeyboardScope';
@@ -78,6 +79,8 @@ export function App() {
 
   const [keybindings, setKeybindings] = useState<KeybindingConfig>(loadKeybindings);
   const reloadKeybindings = useCallback(() => setKeybindings(loadKeybindings()), []);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const reloadSettings = useCallback(() => setSettings(loadSettings()), []);
 
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
@@ -416,13 +419,14 @@ export function App() {
         {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
-              <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} />
+              <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} display={settings.display} />
               <InputArea disabled={loading} cwd={activeProject?.cwd} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>
             <Terminal
               project={activeProject!}
               visible={activeTab === 'terminal'}
               service={service}
+              appearance={settings.appearance}
             />
             <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={updateProjectConfig} />
             {permissionReq && (
@@ -454,6 +458,7 @@ export function App() {
         <SettingsPanel
           onClose={() => setShowSettings(false)}
           onKeybindingsChanged={reloadKeybindings}
+          onSettingsChanged={reloadSettings}
         />
       )}
       {showFolderPicker && (
