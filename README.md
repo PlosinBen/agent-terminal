@@ -11,12 +11,13 @@ client/ (Vite + React)          shared/
     Sidebar, MessageList,       server/ (Node.js + Electron main)
     InputArea, PermissionPopup,   backend/
     FolderPicker, Terminal,         claude/  (Agent SDK)
-    StatusLine                      gemini/  (CLI via node-pty)
-  hooks/                          handlers/
-    useProjects, useTerminal        agent, permission, pty,
-  service/                          project, folder, git-watcher
-    AgentService,                 session-manager.ts
-    ConnectionManager             ws-server.ts
+    StatusLine, SettingsPanel       gemini/  (CLI via node-pty)
+  stores/                        handlers/
+    project-store,                  agent, permission, pty,
+    server-store                    project, folder, git-watcher
+  service/                       session-manager.ts
+    AgentService,                ws-server.ts
+    ConnectionManager
 ```
 
 - **Monorepo**：npm workspaces（`server/`、`client/`、`shared/`）
@@ -53,6 +54,7 @@ npm start                   # builds server → launches electron
 | 語言 | TypeScript |
 | UI | React + Vite |
 | 桌面殼 | Electron |
+| 狀態管理 | Zustand |
 | 通訊 | WebSocket（typed protocol） |
 | Agent SDK | @anthropic-ai/claude-agent-sdk |
 | PTY | node-pty |
@@ -80,7 +82,7 @@ server/src/
 └── shared/protocol.ts          Protocol types (server copy)
 
 client/src/
-├── App.tsx                     Top-level state, keyboard shortcuts
+├── App.tsx                     Layout composition, keyboard shortcuts, UI state
 ├── components/
 │   ├── Sidebar.tsx             Project list with status indicators
 │   ├── MessageList.tsx         Turn-based message grouping
@@ -89,19 +91,24 @@ client/src/
 │   ├── FolderPicker.tsx        In-app directory browser
 │   ├── Terminal.tsx            Embedded PTY terminal (xterm.js)
 │   ├── StatusLine.tsx          Model/tokens/cost/git info
+│   ├── SettingsPanel.tsx       Keybindings, Appearance, Display settings
 │   └── messages/
 │       ├── MarkdownBlock.tsx   Markdown rendering
 │       ├── ThinkingBlock.tsx   Collapsible thinking blocks
 │       └── ToolCallBlock.tsx   Per-tool renderers (diff, code, todo)
+├── stores/
+│   ├── project-store.ts        Project CRUD, per-project messages/status (Zustand)
+│   └── server-store.ts         Server list, WS connection lifecycle (Zustand)
 ├── hooks/
-│   ├── useProjects.ts          Per-project message state
 │   ├── useTerminal.ts          xterm.js lifecycle
 │   └── useKeyboardScope.ts     Scoped keyboard event management
 ├── service/
 │   ├── agent-service.ts        WebSocket + event routing
 │   └── connection-manager.ts   Multi-server connection with reconnect
-└── services/
-    └── keyboard.ts             Global keyboard service (capture phase)
+├── services/
+│   └── keyboard.ts             Global keyboard service (capture phase)
+├── keybindings.ts              Configurable keybinding definitions
+└── settings.ts                 App settings (appearance, display modes)
 
 shared/
 └── protocol.ts                 Typed WebSocket message definitions
