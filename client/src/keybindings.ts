@@ -18,12 +18,8 @@ export type Action =
   | 'nextTab'
   | 'prevTab'
   // Folder Picker
-  | 'fpUp'
-  | 'fpDown'
-  | 'fpEnter'
-  | 'fpBack'
-  | 'fpConfirm'
-  | 'fpCancel';
+  | 'fpNextServer'
+  | 'fpPrevServer';
 
 export type KeybindingConfig = Record<Action, string>;
 
@@ -38,12 +34,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingConfig = {
   nextTab: 'mod+ArrowRight',
   prevTab: 'mod+ArrowLeft',
   // Folder Picker
-  fpUp: 'ArrowUp',
-  fpDown: 'ArrowDown',
-  fpEnter: 'ArrowRight',
-  fpBack: 'ArrowLeft',
-  fpConfirm: 'Enter',
-  fpCancel: 'Escape',
+  fpNextServer: 'Tab',
+  fpPrevServer: 'shift+Tab',
 };
 
 const STORAGE_KEY = 'agent-terminal:keybindings';

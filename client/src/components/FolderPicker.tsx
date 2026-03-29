@@ -6,7 +6,7 @@ import type { ConnectionChangedPayload } from '../service/types';
 import { useKeyboardScope } from '../hooks/useKeyboardScope';
 import { useAppStore } from '../stores/app-store';
 import { PRINTABLE } from '../services/keyboard';
-import { type KeybindingConfig, loadKeybindings, formatBinding } from '../keybindings';
+import { type KeybindingConfig } from '../keybindings';
 import './FolderPicker.css';
 
 type ServerStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
@@ -120,27 +120,6 @@ export function FolderPicker({
     return () => removeScope('folder-picker-form');
   }, [shouldBlock]);
 
-  // Folder-picker scope keybindings (active when not in form/loading)
-  useKeyboardScope('folder-picker', useMemo(() => ({
-    [keybindings.fpUp]: () => setSelectedIndex(i => Math.max(-1, i - 1)),
-    [keybindings.fpDown]: () => setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1)),
-    [keybindings.fpEnter]: () => {
-      if (selectedIndexRef.current === -1) { goUp(); return; }
-      const entry = filteredRef.current[selectedIndexRef.current];
-      if (entry) requestFolder(currentPathRef.current + '/' + entry);
-    },
-    [keybindings.fpBack]: () => goUp(),
-    [keybindings.fpConfirm]: () => {
-      if (selectedIndexRef.current === -1) { goUp(); return; }
-      const entry = filteredRef.current[selectedIndexRef.current];
-      const path = entry ? `${currentPathRef.current}/${entry}` : currentPathRef.current;
-      onSelect(path, activeHostRef.current);
-    },
-    [keybindings.fpCancel]: () => onCancel(),
-    'Backspace': () => setFilter(f => f.slice(0, -1)),
-    [PRINTABLE]: (e: KeyboardEvent) => setFilter(f => f + e.key),
-  }), [keybindings, requestFolder, goUp, onSelect, onCancel]));
-
   const switchServer = useCallback((host: string) => {
     if (host === activeHostRef.current) return;
 
@@ -158,6 +137,40 @@ export function FolderPicker({
       requestFolder(info.homePath);
     });
   }, [service, requestFolder]);
+
+  // Folder-picker scope keybindings (active when not in form/loading)
+  const serversRef = useRef(servers);
+  serversRef.current = servers;
+
+  const cycleServer = useCallback((direction: 1 | -1) => {
+    const list = serversRef.current;
+    if (list.length <= 1) return;
+    const idx = list.findIndex(s => s.host === activeHostRef.current);
+    const next = (idx + direction + list.length) % list.length;
+    switchServer(list[next].host);
+  }, [switchServer]);
+
+  useKeyboardScope('folder-picker', useMemo(() => ({
+    'ArrowUp': () => setSelectedIndex(i => Math.max(-1, i - 1)),
+    'ArrowDown': () => setSelectedIndex(i => Math.min(filteredRef.current.length - 1, i + 1)),
+    'ArrowRight': () => {
+      if (selectedIndexRef.current === -1) { goUp(); return; }
+      const entry = filteredRef.current[selectedIndexRef.current];
+      if (entry) requestFolder(currentPathRef.current + '/' + entry);
+    },
+    'ArrowLeft': () => goUp(),
+    'Enter': () => {
+      if (selectedIndexRef.current === -1) { goUp(); return; }
+      const entry = filteredRef.current[selectedIndexRef.current];
+      const path = entry ? `${currentPathRef.current}/${entry}` : currentPathRef.current;
+      onSelect(path, activeHostRef.current);
+    },
+    'Escape': () => onCancel(),
+    [keybindings.fpNextServer]: () => cycleServer(1),
+    [keybindings.fpPrevServer]: () => cycleServer(-1),
+    'Backspace': () => setFilter(f => f.slice(0, -1)),
+    [PRINTABLE]: (e: KeyboardEvent) => setFilter(f => f + e.key),
+  }), [keybindings, requestFolder, goUp, onSelect, onCancel, cycleServer]));
 
   const handleAddServer = useCallback(() => {
     const name = addName.trim();
@@ -289,11 +302,12 @@ export function FolderPicker({
 
           <div className="fp-browser-footer">
             <div className="fp-browser-hints">
-              <span className="fp-hint"><kbd>{formatBinding(keybindings.fpUp)}/{formatBinding(keybindings.fpDown)}</kbd> select</span>
-              <span className="fp-hint"><kbd>{formatBinding(keybindings.fpEnter)}</kbd> enter</span>
-              <span className="fp-hint"><kbd>{formatBinding(keybindings.fpBack)}</kbd> up</span>
-              <span className="fp-hint"><kbd>{formatBinding(keybindings.fpConfirm)}</kbd> confirm</span>
-              <span className="fp-hint"><kbd>{formatBinding(keybindings.fpCancel)}</kbd> cancel</span>
+              <span className="fp-hint"><kbd>{'\u2191\u2193'}</kbd> select</span>
+              <span className="fp-hint"><kbd>{'\u2192'}</kbd> enter</span>
+              <span className="fp-hint"><kbd>{'\u2190'}</kbd> up</span>
+              <span className="fp-hint"><kbd>Enter</kbd> confirm</span>
+              <span className="fp-hint"><kbd>Esc</kbd> cancel</span>
+              <span className="fp-hint"><kbd>Tab</kbd> server</span>
             </div>
           </div>
         </div>

@@ -20,12 +20,8 @@ const ACTION_LABELS: Record<Action, string> = {
   toggleTerminal: 'Toggle Terminal',
   nextTab: 'Next Tab',
   prevTab: 'Previous Tab',
-  fpUp: 'Navigate Up',
-  fpDown: 'Navigate Down',
-  fpEnter: 'Enter Folder',
-  fpBack: 'Go Back',
-  fpConfirm: 'Confirm Selection',
-  fpCancel: 'Cancel',
+  fpNextServer: 'Next Server',
+  fpPrevServer: 'Previous Server',
 };
 
 const CATEGORIES: { label: string; actions: Action[] }[] = [
@@ -35,7 +31,7 @@ const CATEGORIES: { label: string; actions: Action[] }[] = [
   },
   {
     label: 'Folder Picker',
-    actions: ['fpUp', 'fpDown', 'fpEnter', 'fpBack', 'fpConfirm', 'fpCancel'],
+    actions: ['fpNextServer', 'fpPrevServer'],
   },
 ];
 
