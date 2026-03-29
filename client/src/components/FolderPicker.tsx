@@ -210,7 +210,9 @@ export function FolderPicker({
                     <span className={`fp-server-status ${status}`} title={status} />
                     {s.name}
                   </div>
-                  <div className="fp-server-host">{s.host}</div>
+                  {s.host !== initialServerHost && (
+                    <div className="fp-server-host">{s.host}</div>
+                  )}
                   {servers.length > 1 && (
                     <button
                       className="fp-server-remove"

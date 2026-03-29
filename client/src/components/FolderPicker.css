@@ -88,6 +88,11 @@
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 2px;
+  min-height: 42px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .fp-server-item:hover {
