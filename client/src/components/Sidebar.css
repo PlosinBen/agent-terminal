@@ -21,7 +21,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-.sidebar-add-btn {
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sidebar-icon-btn {
   background: none;
   border: none;
   color: #999;
@@ -32,7 +38,7 @@
   border-radius: 4px;
 }
 
-.sidebar-add-btn:hover {
+.sidebar-icon-btn:hover {
   color: var(--text-primary);
   background: var(--bg-tertiary);
 }

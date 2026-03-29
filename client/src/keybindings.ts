@@ -8,6 +8,7 @@
  */
 
 export type Action =
+  // Global
   | 'toggleSidebar'
   | 'newProject'
   | 'closeProject'
@@ -15,11 +16,19 @@ export type Action =
   | 'nextProject'
   | 'toggleTerminal'
   | 'nextTab'
-  | 'prevTab';
+  | 'prevTab'
+  // Folder Picker
+  | 'fpUp'
+  | 'fpDown'
+  | 'fpEnter'
+  | 'fpBack'
+  | 'fpConfirm'
+  | 'fpCancel';
 
 export type KeybindingConfig = Record<Action, string>;
 
-const DEFAULTS: KeybindingConfig = {
+export const DEFAULT_KEYBINDINGS: KeybindingConfig = {
+  // Global
   toggleSidebar: 'mod+b',
   newProject: 'mod+o',
   closeProject: 'mod+w',
@@ -28,6 +37,13 @@ const DEFAULTS: KeybindingConfig = {
   toggleTerminal: 'mod+`',
   nextTab: 'mod+ArrowRight',
   prevTab: 'mod+ArrowLeft',
+  // Folder Picker
+  fpUp: 'ArrowUp',
+  fpDown: 'ArrowDown',
+  fpEnter: 'ArrowRight',
+  fpBack: 'ArrowLeft',
+  fpConfirm: 'Enter',
+  fpCancel: 'Escape',
 };
 
 const STORAGE_KEY = 'agent-terminal:keybindings';
@@ -77,14 +93,30 @@ export function matchesBinding(e: KeyboardEvent, binding: string): boolean {
 export function loadKeybindings(): KeybindingConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+    if (raw) return { ...DEFAULT_KEYBINDINGS, ...JSON.parse(raw) };
   } catch { /* ignore */ }
-  return { ...DEFAULTS };
+  return { ...DEFAULT_KEYBINDINGS };
 }
 
 export function saveKeybindings(config: Partial<KeybindingConfig>): void {
   const merged = { ...loadKeybindings(), ...config };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+}
+
+/** Build a binding string from a KeyboardEvent, e.g. "mod+b" */
+export function bindingFromEvent(e: KeyboardEvent): string | null {
+  const MODIFIER_KEYS = new Set(['Control', 'Alt', 'Shift', 'Meta']);
+  if (MODIFIER_KEYS.has(e.key)) return null; // lone modifier
+
+  const parts: string[] = [];
+  if ((IS_MAC && e.metaKey) || (!IS_MAC && e.ctrlKey)) parts.push('mod');
+  if (IS_MAC && e.ctrlKey) parts.push('ctrl');
+  if (e.altKey) parts.push('alt');
+  if (e.shiftKey) parts.push('shift');
+  if (!IS_MAC && e.metaKey) parts.push('meta');
+
+  parts.push(e.key.length === 1 ? e.key.toLowerCase() : e.key);
+  return parts.join('+');
 }
 
 // ── Display ──

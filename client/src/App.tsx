@@ -10,7 +10,8 @@ import { StatusLine } from './components/StatusLine';
 import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { Terminal } from './components/Terminal';
-import { loadKeybindings, formatBinding } from './keybindings';
+import { loadKeybindings, formatBinding, type KeybindingConfig } from './keybindings';
+import { SettingsPanel } from './components/SettingsPanel';
 import { keyboard } from './services/keyboard';
 import { useKeyboardScope } from './hooks/useKeyboardScope';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from './projects-storage';
@@ -73,8 +74,10 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  const keybindings = useMemo(() => loadKeybindings(), []);
+  const [keybindings, setKeybindings] = useState<KeybindingConfig>(loadKeybindings);
+  const reloadKeybindings = useCallback(() => setKeybindings(loadKeybindings()), []);
 
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
@@ -389,6 +392,7 @@ export function App() {
         onReorder={handleReorder}
         onCloseProject={closeProject}
         onRevealInFinder={window.electronAPI ? revealInFinder : undefined}
+        onOpenSettings={() => setShowSettings(true)}
         newProjectShortcut={formatBinding(keybindings.newProject)}
       />
       <div className="main-area">
@@ -446,12 +450,19 @@ export function App() {
           </div>
         )}
       </div>
+      {showSettings && (
+        <SettingsPanel
+          onClose={() => setShowSettings(false)}
+          onKeybindingsChanged={reloadKeybindings}
+        />
+      )}
       {showFolderPicker && (
         <FolderPicker
           service={service}
           servers={servers}
           initialServerHost={localHost}
           initialPath={homePath}
+          keybindings={keybindings}
           onSelect={(folderPath, selectedHost) => {
             setShowFolderPicker(false);
             createProjectWithCwd(folderPath, selectedHost);

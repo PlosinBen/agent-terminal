@@ -13,10 +13,11 @@ interface Props {
   onReorder: (fromIndex: number, toIndex: number) => void;
   onCloseProject?: (id: string) => void;
   onRevealInFinder?: (cwd: string) => void;
+  onOpenSettings?: () => void;
   newProjectShortcut?: string;
 }
 
-export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, onCloseProject, onRevealInFinder, newProjectShortcut }: Props) {
+export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, onCloseProject, onRevealInFinder, onOpenSettings, newProjectShortcut }: Props) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string; projectCwd: string } | null>(null);
@@ -27,7 +28,10 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
     <div className="sidebar">
       <div className="sidebar-header">
         <span>Projects</span>
-        <button className="sidebar-add-btn" onClick={onNew} tabIndex={-1} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
+        <span className="sidebar-header-actions">
+          <button className="sidebar-icon-btn" onClick={onOpenSettings} tabIndex={-1} title="Settings">&#9881;</button>
+          <button className="sidebar-icon-btn" onClick={onNew} tabIndex={-1} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
+        </span>
       </div>
       <div className="sidebar-list">
         {projects.map((p, i) => {
