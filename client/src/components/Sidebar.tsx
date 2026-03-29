@@ -1,23 +1,24 @@
 import { useState } from 'react';
 import { ContextMenu } from './ContextMenu';
 import { getStatusDisplay } from '../utils/statusDisplay';
-import type { ProjectInfo } from '../types/project';
+import { useProjectStore } from '../stores/project-store';
 import './Sidebar.css';
 
 interface Props {
-  projects: ProjectInfo[];
-  activeProjectId: string | null;
   visible: boolean;
-  onSelect: (id: string) => void;
   onNew: () => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
-  onCloseProject?: (id: string) => void;
   onRevealInFinder?: (cwd: string) => void;
   onOpenSettings?: () => void;
   newProjectShortcut?: string;
 }
 
-export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, onReorder, onCloseProject, onRevealInFinder, onOpenSettings, newProjectShortcut }: Props) {
+export function Sidebar({ visible, onNew, onRevealInFinder, onOpenSettings, newProjectShortcut }: Props) {
+  const projects = useProjectStore(s => s.projects);
+  const activeProjectId = useProjectStore(s => s.activeProjectId);
+  const setActiveProjectId = useProjectStore(s => s.setActiveProjectId);
+  const reorderProjects = useProjectStore(s => s.reorderProjects);
+  const closeProject = useProjectStore(s => s.closeProject);
+
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string; projectCwd: string } | null>(null);
@@ -50,12 +51,12 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
               onDragOver={(e) => { e.preventDefault(); setOverIdx(i); }}
               onDragLeave={() => setOverIdx(null)}
               onDrop={() => {
-                if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i);
+                if (dragIdx !== null && dragIdx !== i) reorderProjects(dragIdx, i);
                 setDragIdx(null);
                 setOverIdx(null);
               }}
               onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-              onClick={() => onSelect(p.id)}
+              onClick={() => setActiveProjectId(p.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setContextMenu({ x: e.clientX, y: e.clientY, projectId: p.id, projectCwd: p.cwd });
@@ -89,7 +90,7 @@ export function Sidebar({ projects, activeProjectId, visible, onSelect, onNew, o
             }] : []),
             {
               label: 'Close',
-              onClick: () => onCloseProject?.(contextMenu.projectId),
+              onClick: () => closeProject(contextMenu.projectId),
             },
           ]}
           onClose={() => setContextMenu(null)}
