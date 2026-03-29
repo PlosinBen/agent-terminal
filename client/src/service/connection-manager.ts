@@ -10,6 +10,7 @@ interface PoolEntry {
   statusListeners: Set<(status: 'connected' | 'reconnecting' | 'disconnected' | 'error') => void>;
   lastDelay: number;
   retryCount: number;
+  pendingMessages: string[];
 }
 
 // Reconnect: lastDelay + retryCount * STEP + random jitter, capped at MAX
@@ -39,6 +40,7 @@ export class ConnectionManager {
       statusListeners: new Set(),
       lastDelay: 0,
       retryCount: 0,
+      pendingMessages: [],
     };
     this.pool.set(host, newEntry);
     this.connect(host, newEntry);
@@ -60,11 +62,15 @@ export class ConnectionManager {
     }
   }
 
-  /** Send a message to a specific host. */
+  /** Send a message to a specific host. Queues if not yet connected. */
   send(host: string, msg: UpstreamMessage): void {
     const entry = this.pool.get(host);
-    if (entry?.ws?.readyState === WebSocket.OPEN) {
-      entry.ws.send(JSON.stringify(msg));
+    if (!entry) return;
+    const data = JSON.stringify(msg);
+    if (entry.ws?.readyState === WebSocket.OPEN) {
+      entry.ws.send(data);
+    } else {
+      entry.pendingMessages.push(data);
     }
   }
 
@@ -80,7 +86,8 @@ export class ConnectionManager {
         reconnectTimer: null,
         statusListeners: new Set(),
         lastDelay: 0,
-      retryCount: 0,
+        retryCount: 0,
+        pendingMessages: [],
       };
       this.pool.set(host, entry);
     }
@@ -116,6 +123,11 @@ export class ConnectionManager {
     ws.onopen = () => {
       entry.lastDelay = 0;
       entry.retryCount = 0;
+      // Flush queued messages
+      for (const data of entry.pendingMessages) {
+        ws.send(data);
+      }
+      entry.pendingMessages = [];
       for (const listener of entry.statusListeners) listener('connected');
     };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useService } from './service';
 import { Sidebar } from './components/Sidebar';
 import { MessageList } from './components/MessageList';
@@ -14,6 +14,8 @@ import { keyboard } from './services/keyboard';
 import { useKeyboardScope } from './hooks/useKeyboardScope';
 import { useServerStore } from './stores/server-store';
 import { useProjectStore } from './stores/project-store';
+import { rotateOldMessages } from './storage/chat-history';
+import { exportMarkdown, exportJSON, downloadFile } from './utils/export';
 
 declare global {
   interface Window {
@@ -25,6 +27,34 @@ declare global {
 
 const TABS = ['agent', 'terminal'] as const;
 type Tab = typeof TABS[number];
+
+function ExportMenu({ onExport }: { onExport: (format: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="export-menu" ref={ref}>
+      <button className="export-menu-btn" onClick={() => setOpen(v => !v)} title="Export chat">
+        Export
+      </button>
+      {open && (
+        <div className="export-menu-dropdown">
+          <button onClick={() => { onExport('md'); setOpen(false); }}>Markdown</button>
+          <button onClick={() => { onExport('json'); setOpen(false); }}>JSON</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function App() {
   const service = useService();
@@ -40,7 +70,7 @@ export function App() {
   const activeProject = useProjectStore(s => s.activeProject());
   const activeState = useProjectStore(s => s.activeState());
   const { createProject, closeProject, reorderProjects, connectProject,
-    addUserMessage, clearMessages, clearPermission, applyConfigUpdate } = useProjectStore.getState();
+    addUserMessage, clearMessages, clearPermission, applyConfigUpdate, loadMoreHistory } = useProjectStore.getState();
 
   // UI state
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -63,6 +93,11 @@ export function App() {
   useEffect(() => {
     useServerStore.getState().init(service);
     useProjectStore.getState().init(service);
+
+    // Rotate old history at startup
+    const s = loadSettings();
+    rotateOldMessages(s.history.rotateDays).catch(() => {});
+
     return () => {
       useProjectStore.getState().dispose();
       useServerStore.getState().dispose();
@@ -159,6 +194,18 @@ export function App() {
       return;
     }
 
+    if (command === 'export') {
+      const format = args || 'md';
+      const msgs = activeState?.messages ?? [];
+      const name = activeProject?.name ?? 'chat';
+      if (format === 'json') {
+        downloadFile(exportJSON(msgs, name), `${name}-chat.json`, 'application/json');
+      } else {
+        downloadFile(exportMarkdown(msgs, name), `${name}-chat.md`, 'text/markdown');
+      }
+      return;
+    }
+
     if (['model', 'mode', 'effort'].includes(command)) {
       if (args) updateProjectConfig(command, args);
       return;
@@ -170,7 +217,7 @@ export function App() {
       service.sendQuery(project, prompt);
       addUserMessage(activeProjectId, prompt);
     }
-  }, [activeProjectId, service, addUserMessage, updateProjectConfig, clearMessages]);
+  }, [activeProjectId, activeState, activeProject, service, addUserMessage, updateProjectConfig, clearMessages]);
 
   const handleSubmit = useCallback((text: string, images?: string[]) => {
     if (!activeProjectId) return;
@@ -233,6 +280,8 @@ export function App() {
                   className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
                   onClick={() => setActiveTab('terminal')}
                 >Terminal</button>
+                <div className="tab-bar-spacer" />
+                <ExportMenu onExport={(fmt) => handleCommand('export', fmt)} />
               </>
             )}
           </div>
@@ -240,7 +289,15 @@ export function App() {
         {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
-              <MessageList messages={messages} loading={loading} cwd={activeProject?.cwd} display={settings.display} />
+              <MessageList
+                messages={messages}
+                loading={loading}
+                cwd={activeProject?.cwd}
+                display={settings.display}
+                hasMoreHistory={activeState?.hasMoreHistory}
+                loadingHistory={activeState?.loadingHistory}
+                onLoadMore={() => activeProjectId && loadMoreHistory(activeProjectId)}
+              />
               <InputArea disabled={loading} cwd={activeProject?.cwd} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>
             <Terminal

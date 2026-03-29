@@ -5,6 +5,7 @@ export type { ProviderConfig } from '@shared/types';
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  timestamp?: number;
   messageType?: 'text' | 'thinking' | 'tool_use' | 'result' | 'error' | 'compact';
   toolName?: string;
   toolUseId?: string;

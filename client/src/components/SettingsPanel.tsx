@@ -53,11 +53,12 @@ interface Props {
   onSettingsChanged: () => void;
 }
 
-type SettingsTab = 'keybindings' | 'appearance' | 'display';
+type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'history';
 const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: 'keybindings', label: 'Keybindings' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'display', label: 'Display' },
+  { id: 'history', label: 'History' },
 ];
 
 export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged }: Props) {
@@ -146,6 +147,15 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
     setStDraft(prev => ({
       ...prev,
       display: { ...prev.display, [key]: value },
+    }));
+  }, []);
+
+  const updateHistory = useCallback(<K extends keyof AppSettings['history']>(
+    key: K, value: AppSettings['history'][K],
+  ) => {
+    setStDraft(prev => ({
+      ...prev,
+      history: { ...prev.history, [key]: value },
     }));
   }, []);
 
@@ -245,6 +255,41 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
                   </select>
                 </div>
               ))}
+            </>
+          )}
+
+          {/* ── History ── */}
+          {activeTab === 'history' && (
+            <>
+              <div className="settings-row">
+                <span className="settings-row-label">Auto-rotate (days)</span>
+                <div className="settings-number">
+                  <button
+                    className="settings-number-btn"
+                    onClick={() => updateHistory('rotateDays', Math.max(1, stDraft.history.rotateDays - 1))}
+                  >-</button>
+                  <span className="settings-number-value">{stDraft.history.rotateDays}</span>
+                  <button
+                    className="settings-number-btn"
+                    onClick={() => updateHistory('rotateDays', stDraft.history.rotateDays + 1)}
+                  >+</button>
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <span className="settings-row-label">Load limit (rounds)</span>
+                <div className="settings-number">
+                  <button
+                    className="settings-number-btn"
+                    onClick={() => updateHistory('loadLimitRounds', Math.max(1, stDraft.history.loadLimitRounds - 1))}
+                  >-</button>
+                  <span className="settings-number-value">{stDraft.history.loadLimitRounds}</span>
+                  <button
+                    className="settings-number-btn"
+                    onClick={() => updateHistory('loadLimitRounds', stDraft.history.loadLimitRounds + 1)}
+                  >+</button>
+                </div>
+              </div>
             </>
           )}
 

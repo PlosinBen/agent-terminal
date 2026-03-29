@@ -6,6 +6,8 @@ import type { AgentService } from '../service/agent-service';
 import { ServiceEvent } from '../service/types';
 import type { ConnectionChangedPayload } from '../service/types';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from '../projects-storage';
+import { loadSettings } from '../settings';
+import { saveMessages, loadRecentMessages, loadMoreMessages, hasMoreMessages, clearProject } from '../storage/chat-history';
 import { DEFAULT_SERVER_HOST } from './server-store';
 
 // ── Per-project runtime state (was in useProjects) ──
@@ -16,6 +18,8 @@ export interface PerProjectState {
   status: StatusInfo;
   permissionReq: PermissionReq | null;
   providerConfig: ProviderConfig | null;
+  hasMoreHistory: boolean;
+  loadingHistory: boolean;
 }
 
 const DEFAULT_STATUS: StatusInfo = {
@@ -31,6 +35,8 @@ function createPerProjectState(): PerProjectState {
     status: { ...DEFAULT_STATUS },
     permissionReq: null,
     providerConfig: null,
+    hasMoreHistory: false,
+    loadingHistory: false,
   };
 }
 
@@ -71,6 +77,7 @@ interface ProjectStoreState {
   addUserMessage: (projectId: string, content: string, loading?: boolean) => void;
   clearMessages: (projectId: string) => void;
   clearPermission: (projectId: string) => void;
+  loadMoreHistory: (projectId: string) => Promise<void>;
 
   // Config
   applyConfigUpdate: (update: ConfigUpdate) => void;
@@ -179,6 +186,25 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
         [project.id]: s.projectStates[project.id] ?? createPerProjectState(),
       },
     }));
+
+    // Load persisted history
+    try {
+      const settings = loadSettings();
+      const history = await loadRecentMessages(project.id, settings.history.loadLimitRounds);
+      if (history.length > 0) {
+        const more = await hasMoreMessages(project.id, history[0].timestamp!);
+        set(s => {
+          const ps = s.projectStates[project.id];
+          if (!ps || ps.messages.length > 0) return s; // don't overwrite if messages already arrived
+          return {
+            projectStates: {
+              ...s.projectStates,
+              [project.id]: { ...ps, messages: history, hasMoreHistory: more },
+            },
+          };
+        });
+      }
+    } catch { /* ignore history load failure */ }
   },
 
   closeProject: (id) => {
@@ -226,7 +252,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
           ...s.projectStates,
           [projectId]: {
             ...ps,
-            messages: [...ps.messages, { role: 'user' as const, content }],
+            messages: [...ps.messages, { role: 'user' as const, content, timestamp: Date.now() }],
             loading: loading ? true : ps.loading,
           },
         },
@@ -235,16 +261,63 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
   },
 
   clearMessages: (projectId) => {
+    clearProject(projectId).catch(() => {});
     set(s => {
       const ps = s.projectStates[projectId];
       if (!ps) return s;
       return {
         projectStates: {
           ...s.projectStates,
-          [projectId]: { ...ps, messages: [] },
+          [projectId]: { ...ps, messages: [], hasMoreHistory: false },
         },
       };
     });
+  },
+
+  loadMoreHistory: async (projectId) => {
+    const ps = get().projectStates[projectId];
+    if (!ps || ps.loadingHistory || !ps.hasMoreHistory) return;
+
+    set(s => ({
+      projectStates: {
+        ...s.projectStates,
+        [projectId]: { ...s.projectStates[projectId]!, loadingHistory: true },
+      },
+    }));
+
+    try {
+      const oldest = ps.messages[0]?.timestamp ?? Date.now();
+      const settings = loadSettings();
+      const older = await loadMoreMessages(projectId, oldest, settings.history.loadLimitRounds);
+      const more = older.length > 0 ? await hasMoreMessages(projectId, older[0].timestamp!) : false;
+
+      set(s => {
+        const current = s.projectStates[projectId];
+        if (!current) return s;
+        return {
+          projectStates: {
+            ...s.projectStates,
+            [projectId]: {
+              ...current,
+              messages: [...older, ...current.messages],
+              hasMoreHistory: more,
+              loadingHistory: false,
+            },
+          },
+        };
+      });
+    } catch {
+      set(s => {
+        const current = s.projectStates[projectId];
+        if (!current) return s;
+        return {
+          projectStates: {
+            ...s.projectStates,
+            [projectId]: { ...current, loadingHistory: false },
+          },
+        };
+      });
+    }
   },
 
   clearPermission: (projectId) => {
@@ -302,7 +375,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             if (last?.role === 'assistant' && last.messageType === 'text') {
               messages[messages.length - 1] = { ...last, content: last.content + msg.content };
             } else {
-              messages.push({ role: 'assistant', content: msg.content.trimStart(), messageType: 'text' });
+              messages.push({ role: 'assistant', content: msg.content.trimStart(), messageType: 'text', timestamp: Date.now() });
             }
             updated = { ...ps, messages };
             break;
@@ -319,7 +392,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             if (thinkingIdx >= 0) {
               messages[thinkingIdx] = { ...messages[thinkingIdx], content: messages[thinkingIdx].content + msg.content };
             } else {
-              messages.push({ role: 'assistant', content: msg.content, messageType: 'thinking', collapsible: true });
+              messages.push({ role: 'assistant', content: msg.content, messageType: 'thinking', collapsible: true, timestamp: Date.now() });
             }
             updated = { ...ps, messages };
             break;
@@ -331,7 +404,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
               messages: [...ps.messages, {
                 role: 'assistant', content: msg.content, messageType: 'tool_use',
                 toolName: msg.toolName, toolUseId: msg.toolUseId, toolInput: msg.toolInput,
-                collapsible: true,
+                collapsible: true, timestamp: Date.now(),
               }],
             };
             break;
@@ -358,14 +431,18 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
 
           case 'agent:done':
             updated = { ...ps, loading: false };
-            setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: 'idle' }), 0);
+            setTimeout(() => {
+              get().applyConfigUpdate({ projectId: pid, agentStatus: 'idle' });
+              const msgs = get().projectStates[pid]?.messages;
+              if (msgs) saveMessages(pid, msgs).catch(() => {});
+            }, 0);
             break;
 
           case 'agent:error':
             updated = {
               ...ps,
               loading: false,
-              messages: [...ps.messages, { role: 'system', content: `Error: ${msg.error}`, messageType: 'error' }],
+              messages: [...ps.messages, { role: 'system', content: `Error: ${msg.error}`, messageType: 'error', timestamp: Date.now() }],
             };
             setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: 'idle' }), 0);
             break;
@@ -390,7 +467,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
           case 'command:result':
             updated = {
               ...ps,
-              messages: [...ps.messages, { role: 'system', content: msg.message }],
+              messages: [...ps.messages, { role: 'system', content: msg.message, timestamp: Date.now() }],
             };
             break;
 
@@ -446,6 +523,16 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
       service.on(ServiceEvent.CommandResult, handleMsg),
       service.on(ServiceEvent.ConnectionChanged, handleConnectionChanged),
     ];
+
+    // Reset any projects stuck in 'connecting' (e.g. after HMR reload)
+    const stuckProjects = get().projects.filter(p => p.connectionStatus === 'connecting');
+    if (stuckProjects.length > 0) {
+      set(s => ({
+        projects: s.projects.map(p =>
+          p.connectionStatus === 'connecting' ? { ...p, connectionStatus: 'disconnected' as const } : p
+        ),
+      }));
+    }
 
     set({ _service: service, _unsubscribers: unsubs });
   },

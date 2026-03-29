@@ -11,6 +11,9 @@ interface Props {
   loading: boolean;
   cwd?: string;
   display: AppSettings['display'];
+  hasMoreHistory?: boolean;
+  loadingHistory?: boolean;
+  onLoadMore?: () => void;
 }
 
 interface Turn {
@@ -50,9 +53,10 @@ function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
   return groups;
 }
 
-export function MessageList({ messages, loading, cwd, display }: Props) {
+export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   // Track indices the user has manually toggled (overrides display defaults)
   const [toggled, setToggled] = useState<Set<number>>(() => new Set());
@@ -75,6 +79,37 @@ export function MessageList({ messages, loading, cwd, display }: Props) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   });
+
+  // IntersectionObserver for lazy loading older history
+  useEffect(() => {
+    if (!hasMoreHistory || !sentinelRef.current || !listRef.current) return;
+    const sentinel = sentinelRef.current;
+    const container = listRef.current;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && onLoadMore && !loadingHistory) {
+          // Record scroll position before loading
+          const prevScrollHeight = container.scrollHeight;
+          const prevScrollTop = container.scrollTop;
+
+          // Use a microtask to restore scroll after DOM update
+          const origOnLoadMore = onLoadMore;
+          origOnLoadMore();
+
+          // Restore scroll position after new messages are prepended
+          requestAnimationFrame(() => {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+          });
+        }
+      },
+      { root: container, threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreHistory, loadingHistory, onLoadMore]);
 
   const toggle = useCallback((index: number) => {
     setToggled(prev => {
@@ -161,6 +196,11 @@ export function MessageList({ messages, loading, cwd, display }: Props) {
 
   return (
     <div className="message-list" ref={listRef}>
+      {hasMoreHistory && (
+        <div ref={sentinelRef} className="load-more-sentinel">
+          {loadingHistory && <span className="spinner" />}
+        </div>
+      )}
       {isEmpty && (
         <div className="message-list-empty">
           Say something to get the AI working for you.

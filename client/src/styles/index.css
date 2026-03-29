@@ -109,6 +109,61 @@ body {
   border-bottom-color: var(--accent);
 }
 
+.tab-bar-spacer {
+  flex: 1;
+}
+
+.export-menu {
+  position: relative;
+  margin-right: 8px;
+}
+
+.export-menu-btn {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.export-menu-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.export-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 10;
+  min-width: 100px;
+}
+
+.export-menu-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.export-menu-dropdown button:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
 .agent-view {
   flex-direction: column;
   flex: 1;

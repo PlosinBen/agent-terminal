@@ -15,6 +15,13 @@ export interface CommandDef {
 
 const APP_COMMANDS: CommandDef[] = [
   { name: 'clear', description: 'Clear screen', argumentHint: '' },
+  {
+    name: 'export', description: 'Export chat history', argumentHint: '<md|json>',
+    options: [
+      { value: 'md', label: 'Markdown' },
+      { value: 'json', label: 'JSON' },
+    ],
+  },
 ];
 
 export function buildCommandList(providerConfig?: ProviderConfig | null): CommandDef[] {

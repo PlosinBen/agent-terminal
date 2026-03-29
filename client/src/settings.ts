@@ -22,6 +22,10 @@ export interface AppSettings {
     TodoWrite: DisplayMode;
     other: DisplayMode;
   };
+  history: {
+    rotateDays: number;
+    loadLimitRounds: number;
+  };
 }
 
 export const DISPLAY_KEYS: { key: keyof AppSettings['display']; label: string }[] = [
@@ -55,6 +59,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     TodoWrite: 'collapsed',
     other: 'collapsed',
   },
+  history: {
+    rotateDays: 30,
+    loadLimitRounds: 10,
+  },
 };
 
 const STORAGE_KEY = 'agent-terminal:settings';
@@ -67,6 +75,7 @@ export function loadSettings(): AppSettings {
       return {
         appearance: { ...DEFAULT_SETTINGS.appearance, ...parsed.appearance },
         display: { ...DEFAULT_SETTINGS.display, ...parsed.display },
+        history: { ...DEFAULT_SETTINGS.history, ...parsed.history },
       };
     }
   } catch { /* ignore */ }

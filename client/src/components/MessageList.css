@@ -109,3 +109,12 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Load more sentinel ── */
+
+.load-more-sentinel {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  min-height: 20px;
+}
