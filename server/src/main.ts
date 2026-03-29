@@ -16,7 +16,10 @@ function spawnServer(): Promise<number> {
     const serverPath = path.join(import.meta.dirname, 'standalone.js');
     serverProcess = fork(serverPath, [], {
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        ELECTRON_RESOURCES_PATH: process.resourcesPath || '',
+      },
     });
 
     let resolved = false;
@@ -97,12 +100,43 @@ app.whenReady().then(async () => {
 
   createWindow(port);
 
+  // Auto-update: only in packaged production builds
+  if (app.isPackaged) {
+    setupAutoUpdater();
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow(port);
     }
   });
 });
+
+function setupAutoUpdater() {
+  import('electron-updater').then(({ autoUpdater }) => {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on('update-available', (info) => {
+      console.log(`[updater] Update available: ${info.version}`);
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log(`[updater] Update downloaded: ${info.version}, will install on quit`);
+    });
+
+    autoUpdater.on('error', (err) => {
+      console.error('[updater] Error:', err.message);
+    });
+
+    // Check after startup, delay to avoid slowing initial load
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    }, 3000);
+  }).catch((err) => {
+    console.error('[updater] Failed to load electron-updater:', err.message);
+  });
+}
 
 app.on('window-all-closed', () => {
   serverProcess?.kill();

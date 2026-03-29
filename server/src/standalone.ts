@@ -1,16 +1,27 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { fixMacOsPath, createServerCore, getPreferredPort, setupGracefulShutdown } from './server-core.js';
 import { logger } from './core/logger.js';
+import { checkForServerUpdate } from './update-check.js';
 
 fixMacOsPath();
 
 const core = createServerCore();
 setupGracefulShutdown(core);
 
-// Resolve client/dist relative to server/dist/standalone.js → ../../client/dist
-const clientDistDir = path.resolve(import.meta.dirname, '../../client/dist');
+// Resolve client/dist — detect packaged Electron context via env from main.ts
+function getClientDistDir(): string {
+  const resourcesPath = process.env.ELECTRON_RESOURCES_PATH;
+  if (resourcesPath) {
+    return path.join(resourcesPath, 'app.asar', 'client', 'dist');
+  }
+  // Dev / standalone server: two levels up from server/dist/
+  return path.resolve(import.meta.dirname, '../../client/dist');
+}
+
+const clientDistDir = getClientDistDir();
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
@@ -71,4 +82,13 @@ httpServer.listen(preferredPort, () => {
   const addr = httpServer.address();
   const port = typeof addr === 'object' && addr ? addr.port : preferredPort;
   console.log(`[server] Standalone running on http://localhost:${port}`);
+
+  // Version check for server-only mode (not when launched from Electron)
+  if (!process.env.ELECTRON_RESOURCES_PATH) {
+    const require = createRequire(import.meta.url);
+    const { version } = require('../../package.json') as { version: string };
+    setTimeout(() => {
+      checkForServerUpdate(version).catch(() => {});
+    }, 2000);
+  }
 });

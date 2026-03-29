@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Agent terminal — Electron + WebSocket",
+  "author": "Ben <PlosinBen@gmail.com>",
+  "main": "server/dist/main.js",
   "workspaces": ["server", "client"],
   "scripts": {
     "dev": "rm -f debug.log && npm run build:server && concurrently --kill-others -n server,vite,electron -c blue,green,yellow \"tsx watch server/src/standalone.ts\" \"npm run dev -w client\" \"sleep 3 && VITE_DEV_SERVER_URL=http://localhost:5173 electron server/dist/main.js\"",
@@ -10,11 +12,53 @@
     "dev:client": "npm run dev -w client",
     "build:server": "npm run build -w server",
     "build:client": "npm run build -w client",
+    "build": "npm run build:server && npm run build:client",
     "electron": "electron server/dist/main.js",
-    "start": "npm run build:server && npm run build:client && npm run electron",
-    "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js",
+    "start": "npm run build && npm run electron",
+    "start:standalone": "npm run build && node server/dist/standalone.js",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "release": "npm run build && electron-builder --publish always",
+    "build:server-tarball": "npm run build && node scripts/build-server-tarball.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "build": {
+    "appId": "com.plosinben.agent-terminal",
+    "productName": "Agent Terminal",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "server/dist/**/*",
+      "server/preload.cjs",
+      "client/dist/**/*",
+      "shared/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "tar.gz", "arch": ["x64"] }
+      ],
+      "category": "Development"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "PlosinBen",
+      "repo": "agent-terminal"
+    }
   },
   "devDependencies": {
     "electron": "^35.0.0",
