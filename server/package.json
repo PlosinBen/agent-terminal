@@ -7,7 +7,9 @@
   "scripts": {
     "build": "rm -rf dist && tsc",
     "dev": "tsc --watch --preserveWatchOutput",
-    "start": "node dist/standalone.js"
+    "start": "node dist/standalone.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.83",

@@ -12,11 +12,14 @@
     "build:client": "npm run build -w client",
     "electron": "electron server/dist/main.js",
     "start": "npm run build:server && npm run build:client && npm run electron",
-    "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js"
+    "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js",
+    "test": "vitest run --workspace vitest.workspace.ts",
+    "test:watch": "vitest --workspace vitest.workspace.ts"
   },
   "devDependencies": {
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0",
-    "concurrently": "^9.0.0"
+    "concurrently": "^9.0.0",
+    "vitest": "^3.1.0"
   }
 }

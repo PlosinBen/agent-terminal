@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+shared/*.js
+shared/*.d.ts
 
 # IDE
 .idea/
