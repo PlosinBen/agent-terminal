@@ -23,7 +23,6 @@ declare global {
   }
 }
 
-const DEFAULT_SERVER_HOST = window.electronAPI ? 'localhost:9100' : location.host;
 const TABS = ['agent', 'terminal'] as const;
 type Tab = typeof TABS[number];
 
@@ -31,8 +30,7 @@ export function App() {
   const service = useService();
   const {
     servers, localHost, homePath, localConnected,
-    setLocalHost, setHomePath, setLocalConnected,
-    addServer, removeServer, ensureServer,
+    addServer, removeServer,
   } = useServerStore();
 
   // Project store
@@ -61,30 +59,15 @@ export function App() {
     return () => keyboard.stop();
   }, []);
 
-  // Initialize project store with service
+  // Initialize stores with service
   useEffect(() => {
+    useServerStore.getState().init(service);
     useProjectStore.getState().init(service);
-    return () => useProjectStore.getState().dispose();
-  }, [service]);
-
-  // Acquire WS connection on mount + fetch home path via server:info
-  useEffect(() => {
-    const host = DEFAULT_SERVER_HOST;
-    setLocalHost(host);
-    service.acquireConnection(host);
-    ensureServer({ host, name: 'localhost' });
-
-    if (service.isConnected(host)) {
-      setLocalConnected(true);
-      service.getServerInfo(host).then(info => {
-        setHomePath(info.homePath);
-      }).catch(() => {});
-    }
-
     return () => {
-      service.releaseConnection(host);
+      useProjectStore.getState().dispose();
+      useServerStore.getState().dispose();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [service]);
 
   // Open folder picker
   const openFolderPicker = useCallback(() => {

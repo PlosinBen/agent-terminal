@@ -1,18 +1,6 @@
 # Refactoring Plan
 
-## 1. Connection Store (`stores/connection-store.ts`)
-
-從 App.tsx 抽出：
-- WS 連線初始化、reconnect 邏輯
-
-```
-Before: App.tsx useEffect 裡處理 acquireConnection + getServerInfo + reconnect
-After:  ConnectionStore 封裝連線生命週期
-```
-
----
-
-## 2. 拆解 FolderPicker — 左右職責分離
+## 1. 拆解 FolderPicker — 左右職責分離
 
 **現狀：** FolderPicker 一個元件管 11 個 state、server 連線狀態追蹤、add form、folder 瀏覽、keyboard scope。
 
@@ -36,7 +24,7 @@ ServerPanel 和 FolderBrowser 各自管自己的 local state，透過 FolderPick
 
 ---
 
-## 3. 消除 Prop Drilling
+## 2. 消除 Prop Drilling
 
 **現狀：** App → FolderPicker 傳 8 個 props。
 
@@ -46,7 +34,7 @@ ServerPanel 和 FolderBrowser 各自管自己的 local state，透過 FolderPick
 
 ---
 
-## 4. 清理未使用的程式碼
+## 3. 清理未使用的程式碼
 
 - `hooks/useProject.ts` — 未被使用，已被 `useProjects.ts` 取代
 - `hooks/useWebSocket.ts` — 未被使用，已被 `service/connection-manager.ts` 取代
@@ -55,23 +43,7 @@ ServerPanel 和 FolderBrowser 各自管自己的 local state，透過 FolderPick
 
 ---
 
-## 5. Service 層釐清職責
-
-**現狀：** `AgentService` 包裝 `ConnectionManager`，但 App.tsx 也直接呼叫 `service.acquireConnection()`。連線邏輯散在三層。
-
-**方案：**
-
-```
-ConnectionManager  — 純 WebSocket 池管理（connect/send/receive）
-AgentService       — protocol-aware 操作（connectProject, sendQuery, listFolders）
-ConnectionStore    — 應用層連線狀態（哪些 server 已連、reconnect 策略）
-```
-
-App.tsx 不再直接碰 `acquireConnection`，改由 ConnectionStore 或 ServerStore 管理。
-
----
-
-## 6. Server 啟動模式分離（Full / Agent-only）
+## 4. Server 啟動模式分離（Full / Agent-only）
 
 **現狀：** `standalone.ts` 強制 HTTP+WS 綁定。遠端 Linux CLI 環境只需要 WS，不需要 HTTP serve 靜態檔。
 
@@ -104,8 +76,7 @@ node server/dist/standalone.js --agent-only
 
 | 階段 | 項目 | 影響範圍 | 說明 |
 |------|------|----------|------|
-| 1 | Connection Store | App.tsx, service 層 | 連線邏輯收攏 |
-| 2 | 拆 FolderPicker | FolderPicker | UI 拆分 |
-| 3 | 消除 Prop Drilling | FolderPicker 等 | 收攏 props |
-| 4 | 刪除未使用程式碼 | 低風險 | 收尾 |
-| 5 | Server 啟動模式分離（Full / Agent-only） | standalone.ts | 遠端部署支援 |
+| 1 | 拆 FolderPicker | FolderPicker | UI 拆分 |
+| 2 | 消除 Prop Drilling | FolderPicker 等 | 收攏 props |
+| 3 | 刪除未使用程式碼 | 低風險 | 收尾 |
+| 4 | Server 啟動模式分離（Full / Agent-only） | standalone.ts | 遠端部署支援 |

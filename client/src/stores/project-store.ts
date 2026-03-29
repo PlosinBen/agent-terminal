@@ -6,11 +6,7 @@ import type { AgentService } from '../service/agent-service';
 import { ServiceEvent } from '../service/types';
 import type { ConnectionChangedPayload } from '../service/types';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from '../projects-storage';
-import { useServerStore } from './server-store';
-
-const DEFAULT_SERVER_HOST = typeof window !== 'undefined' && (window as any).electronAPI
-  ? 'localhost:9100'
-  : typeof location !== 'undefined' ? location.host : 'localhost:9100';
+import { DEFAULT_SERVER_HOST } from './server-store';
 
 // ── Per-project runtime state (was in useProjects) ──
 
@@ -408,20 +404,9 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
       });
     };
 
-    // Handle connection status changes
+    // Handle connection status changes (project reconnect logic)
     const handleConnectionChanged = (payload: unknown) => {
       const ev = payload as ConnectionChangedPayload;
-      const serverStore = useServerStore.getState();
-
-      // Track local server connection
-      if (ev.host === serverStore.localHost) {
-        serverStore.setLocalConnected(ev.status === 'connected');
-        if (ev.status === 'connected') {
-          service.getServerInfo(ev.host).then(info => {
-            serverStore.setHomePath(info.homePath);
-          }).catch(() => {});
-        }
-      }
 
       if (ev.status === 'reconnecting') {
         set(s => ({
