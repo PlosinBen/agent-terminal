@@ -97,7 +97,7 @@ describe('SessionManager', () => {
   it('routes pty:spawn to pty handler', () => {
     (sm as any).sessions.set('p1', createMockSession());
     sm.handleMessage(
-      { type: 'pty:spawn', projectId: 'p1', cols: 80, rows: 24 },
+      { type: 'pty:spawn', projectId: 'p1', requestId: 'r1' },
       send,
       wsServer,
     );

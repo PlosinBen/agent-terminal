@@ -13,8 +13,8 @@
     "electron": "electron server/dist/main.js",
     "start": "npm run build:server && npm run build:client && npm run electron",
     "start:standalone": "npm run build:server && npm run build:client && node server/dist/standalone.js",
-    "test": "vitest run --workspace vitest.workspace.ts",
-    "test:watch": "vitest --workspace vitest.workspace.ts"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "electron": "^35.0.0",

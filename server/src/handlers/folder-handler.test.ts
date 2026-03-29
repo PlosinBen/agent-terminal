@@ -36,7 +36,10 @@ describe('handleFolderList', () => {
     );
     const entries = (replies[0] as any).entries as string[];
     const firstDotIdx = entries.findIndex((e: string) => e.startsWith('.'));
-    const lastNormalIdx = entries.findLastIndex((e: string) => !e.startsWith('.'));
+    let lastNormalIdx = -1;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (!entries[i].startsWith('.')) { lastNormalIdx = i; break; }
+    }
     if (firstDotIdx !== -1 && lastNormalIdx !== -1) {
       expect(firstDotIdx).toBeGreaterThan(lastNormalIdx);
     }
