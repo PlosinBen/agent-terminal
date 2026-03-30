@@ -16,10 +16,6 @@ Features that are not critical but would improve the experience.
 
 - **限制 Remote 連線**：Server 應透過 server info 回傳 `allowRemoteConnections` flag，讓 client 決定是否顯示「Add Server」UI。預設 Electron 及 Server mode 皆為 `false`，待認證機制完成後再考慮開放。避免使用者透過 web client 連接其他未授權的 server，同時減少跨版本 protocol 不相容問題。
 
-## Cross-tab 通知
-
-- **Agent 需要注意通知**：當使用者在 Terminal tab 時，如果 Agent tab 有 permission request 或完成訊息，目前沒有任何提示。加入 tab badge 或 banner 通知，防止使用者錯過重要事件。
-
 ## 技術債清理
 
 - **刪除 dead code**：`client/src/hooks/useProject.ts` 和 `client/src/hooks/useWebSocket.ts` 已被 store + connection-manager 取代，仍留在 repo 中。直接刪除。
