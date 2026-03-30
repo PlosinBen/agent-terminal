@@ -4,7 +4,6 @@ import { Sidebar } from './components/Sidebar';
 import { MessageList } from './components/MessageList';
 import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
-import { PermissionPopup } from './components/PermissionPopup';
 import { FolderPicker } from './components/FolderPicker';
 import { Terminal } from './components/Terminal';
 import { loadKeybindings, formatBinding, type KeybindingConfig } from './keybindings';
@@ -256,13 +255,29 @@ export function App() {
     if (project) service.stopAgent(project);
   }, [activeProjectId, service]);
 
-  const handlePermission = useCallback((result: { behavior: 'allow' } | { behavior: 'deny'; message: string }) => {
+  const { addAutoAllowTool } = useProjectStore();
+
+  const handlePermission = useCallback((response: { result: { behavior: 'allow' } | { behavior: 'deny'; message: string }; alwaysAllow?: boolean }) => {
     if (!activeProjectId || !activeState?.permissionReq) return;
     const project = useProjectStore.getState().projects.find(p => p.id === activeProjectId);
     if (!project) return;
-    service.respondPermission(project, activeState.permissionReq.requestId, result);
+    if (response.alwaysAllow) {
+      addAutoAllowTool(activeProjectId, activeState.permissionReq.toolName);
+    }
+    service.respondPermission(project, activeState.permissionReq.requestId, response.result);
     clearPermission(activeProjectId);
-  }, [activeProjectId, activeState, service, clearPermission]);
+  }, [activeProjectId, activeState, service, clearPermission, addAutoAllowTool]);
+
+  // Auto-respond to permission requests for always-allowed tools
+  useEffect(() => {
+    if (!activeProjectId || !activeState?.permissionReq) return;
+    if (activeState.autoAllowTools.has(activeState.permissionReq.toolName)) {
+      const project = useProjectStore.getState().projects.find(p => p.id === activeProjectId);
+      if (!project) return;
+      service.respondPermission(project, activeState.permissionReq.requestId, { behavior: 'allow' });
+      clearPermission(activeProjectId);
+    }
+  }, [activeProjectId, activeState?.permissionReq, activeState?.autoAllowTools, service, clearPermission]);
 
   const loading = activeState?.loading ?? false;
   const messages = activeState?.messages ?? [];
@@ -328,6 +343,8 @@ export function App() {
                 onLoadMore={() => activeProjectId && loadMoreHistory(activeProjectId)}
                 listRef={listRef}
                 tasks={tasks}
+                permissionReq={permissionReq}
+                onPermissionRespond={handlePermission}
                 searchMatchIndices={searchOpen ? searchMatchIndices : undefined}
                 activeMatchIndex={searchOpen ? activeMatchIndex : undefined}
               />
@@ -340,9 +357,6 @@ export function App() {
               appearance={settings.appearance}
             />
             <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={updateProjectConfig} />
-            {permissionReq && (
-              <PermissionPopup req={permissionReq} onRespond={handlePermission} cwd={activeProject?.cwd} />
-            )}
             {activeProject?.connectionStatus === 'reconnecting' && (
               <div className="reconnecting-overlay">Reconnecting...</div>
             )}

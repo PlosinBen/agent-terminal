@@ -1,0 +1,79 @@
+/* ── Permission Banner (inline) ── */
+
+.permission-banner {
+  border-left: 3px solid #e5c07b;
+  background: rgba(229, 192, 123, 0.06);
+  border-radius: 0 4px 4px 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perm-banner-header {
+  font-weight: bold;
+  font-size: 14px;
+  color: #e5c07b;
+}
+
+/* ── Options ── */
+
+.perm-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.perm-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.perm-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.perm-option.selected {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.perm-option-indicator {
+  font-size: 11px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.perm-option-allow {
+  color: #98c379;
+}
+
+.perm-option-allow-always {
+  color: #61afef;
+}
+
+.perm-option-deny {
+  color: #e06c75;
+}
+
+/* ── Hint ── */
+
+.perm-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.perm-hint kbd {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}

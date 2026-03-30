@@ -19,6 +19,7 @@ export interface PerProjectState {
   permissionReq: PermissionReq | null;
   providerConfig: ProviderConfig | null;
   tasks: TaskInfo[];
+  autoAllowTools: Set<string>;
   hasMoreHistory: boolean;
   loadingHistory: boolean;
 }
@@ -37,6 +38,7 @@ function createPerProjectState(): PerProjectState {
     permissionReq: null,
     providerConfig: null,
     tasks: [],
+    autoAllowTools: new Set(),
     hasMoreHistory: false,
     loadingHistory: false,
   };
@@ -79,6 +81,7 @@ interface ProjectStoreState {
   addUserMessage: (projectId: string, content: string, loading?: boolean) => void;
   clearMessages: (projectId: string) => void;
   clearPermission: (projectId: string) => void;
+  addAutoAllowTool: (projectId: string, toolName: string) => void;
   loadMoreHistory: (projectId: string) => Promise<void>;
 
   // Config
@@ -330,6 +333,21 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
         projectStates: {
           ...s.projectStates,
           [projectId]: { ...ps, permissionReq: null },
+        },
+      };
+    });
+  },
+
+  addAutoAllowTool: (projectId, toolName) => {
+    set(s => {
+      const ps = s.projectStates[projectId];
+      if (!ps) return s;
+      const next = new Set(ps.autoAllowTools);
+      next.add(toolName);
+      return {
+        projectStates: {
+          ...s.projectStates,
+          [projectId]: { ...ps, autoAllowTools: next },
         },
       };
     });

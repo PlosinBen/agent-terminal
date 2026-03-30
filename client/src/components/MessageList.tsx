@@ -5,6 +5,8 @@ import type { AppSettings } from '../settings';
 import { MarkdownBlock } from './messages/MarkdownBlock';
 import { ThinkingBlock } from './messages/ThinkingBlock';
 import { ToolCallBlock } from './messages/ToolCallBlock';
+import { PermissionBanner, type PermissionResponse } from './messages/PermissionBanner';
+import type { PermissionReq } from '../types/message';
 import './MessageList.css';
 
 interface Props {
@@ -17,6 +19,8 @@ interface Props {
   onLoadMore?: () => void;
   listRef?: RefObject<HTMLDivElement | null>;
   tasks?: TaskInfo[];
+  permissionReq?: PermissionReq | null;
+  onPermissionRespond?: (response: PermissionResponse) => void;
   searchMatchIndices?: Set<number>;
   activeMatchIndex?: number;
 }
@@ -58,7 +62,7 @@ function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
   return groups;
 }
 
-export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore, listRef: externalListRef, tasks, searchMatchIndices, activeMatchIndex }: Props) {
+export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore, listRef: externalListRef, tasks, permissionReq, onPermissionRespond, searchMatchIndices, activeMatchIndex }: Props) {
   const internalListRef = useRef<HTMLDivElement>(null);
   const listRef = externalListRef ?? internalListRef;
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -250,7 +254,12 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
           </div>
         )
       )}
-      {loading && (
+      {permissionReq && onPermissionRespond && (
+        <div className="msg">
+          <PermissionBanner req={permissionReq} onRespond={onPermissionRespond} cwd={cwd} />
+        </div>
+      )}
+      {loading && !permissionReq && (
         <div className="turn">
           <div className="turn-agent">
             <div className="msg msg-loading">
