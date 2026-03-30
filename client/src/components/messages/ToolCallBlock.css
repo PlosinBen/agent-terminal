@@ -203,3 +203,84 @@
 .tool-todo-pending {
   color: var(--text-secondary);
 }
+
+/* ── Task Badge ── */
+
+.task-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.task-badge--running {
+  color: #61afef;
+  background: rgba(97, 175, 239, 0.15);
+}
+
+.task-badge--running::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #61afef;
+  border-top-color: transparent;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+  animation: task-spin 0.8s linear infinite;
+}
+
+.task-badge--stalled {
+  color: #e5c07b;
+  background: rgba(229, 192, 123, 0.15);
+}
+
+.task-badge--stalled::before {
+  content: '!';
+  display: inline-block;
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+@keyframes task-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Task Children (nested subagent messages) ── */
+
+.task-children {
+  margin-left: 16px;
+  border-left: 2px solid var(--border-color, #3e4451);
+  padding-left: 8px;
+  padding-bottom: 4px;
+}
+
+.task-child-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.task-child-tool .tool-name {
+  font-size: 11px;
+}
+
+.task-child-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 2px 4px;
+  white-space: pre-wrap;
+}
+
+.task-child-count {
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 0 5px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}

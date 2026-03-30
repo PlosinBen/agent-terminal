@@ -45,28 +45,43 @@ export async function handleAgentQuery(
     });
 
     for await (const agentMsg of gen) {
+      const pid = msg.projectId;
+      const parent = agentMsg.parentToolUseId;
+
       if (agentMsg.type === 'text') {
-        send({ type: 'agent:text', projectId: msg.projectId, content: agentMsg.content });
+        send({ type: 'agent:text', projectId: pid, content: agentMsg.content, ...(parent && { parentToolUseId: parent }) });
       } else if (agentMsg.type === 'thinking') {
-        send({ type: 'agent:thinking', projectId: msg.projectId, content: agentMsg.content });
+        send({ type: 'agent:thinking', projectId: pid, content: agentMsg.content, ...(parent && { parentToolUseId: parent }) });
       } else if (agentMsg.type === 'tool_use') {
+        // Track subagent tasks
+        if ((agentMsg.toolName === 'Task' || agentMsg.toolName === 'Agent') && agentMsg.toolUseId) {
+          const input = agentMsg.toolInput || {};
+          const desc = String(input.description || input.prompt || 'Task');
+          session.taskTracker.register(agentMsg.toolUseId, desc);
+        }
         send({
           type: 'agent:tool_use',
-          projectId: msg.projectId,
+          projectId: pid,
           toolName: agentMsg.toolName || 'unknown',
           toolUseId: agentMsg.toolUseId || '',
           toolInput: agentMsg.toolInput || {},
           content: agentMsg.content,
+          ...(parent && { parentToolUseId: parent }),
         });
       } else if (agentMsg.type === 'tool_result') {
+        // Complete tracked tasks (no-op for non-Task tool IDs)
+        if (agentMsg.toolUseId) {
+          session.taskTracker.complete(agentMsg.toolUseId);
+        }
         send({
           type: 'agent:tool_result',
-          projectId: msg.projectId,
+          projectId: pid,
           toolUseId: agentMsg.toolUseId || '',
           content: agentMsg.content,
+          ...(parent && { parentToolUseId: parent }),
         });
       } else if (agentMsg.type === 'system') {
-        send({ type: 'agent:system', projectId: msg.projectId, content: agentMsg.content });
+        send({ type: 'agent:system', projectId: pid, content: agentMsg.content, ...(parent && { parentToolUseId: parent }) });
       } else if (agentMsg.type === 'result') {
         send({
           type: 'agent:result',

@@ -11,6 +11,7 @@ export interface Message {
   toolUseId?: string;
   toolInput?: Record<string, unknown>;
   toolResult?: string;
+  parentToolUseId?: string;
   collapsible?: boolean;
 }
 

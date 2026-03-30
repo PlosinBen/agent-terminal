@@ -3,6 +3,7 @@ import type { WsServer } from '../ws-server.js';
 import type { ProjectSession } from '../session-manager.js';
 import { ClaudeBackend } from '../backend/claude/backend.js';
 import { createProject } from '../core/workspace.js';
+import { TaskTracker } from '../core/task.js';
 import { watchGitHead, broadcastStatus } from './git-watcher.js';
 
 export function handleProjectCreate(
@@ -18,6 +19,11 @@ export function handleProjectCreate(
     sessionId: project.sessionId,
   });
 
+  const taskTracker = new TaskTracker((tasks) => {
+    if (wsServer) wsServer.broadcast({ type: 'task:update', projectId: project.id, tasks });
+  });
+  taskTracker.start();
+
   const session: ProjectSession = {
     project,
     backend,
@@ -26,6 +32,7 @@ export function handleProjectCreate(
     turns: 0,
     ptyProcess: null,
     gitWatcher: null,
+    taskTracker,
   };
 
   sessions.set(project.id, session);

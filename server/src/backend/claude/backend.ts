@@ -204,11 +204,12 @@ export class ClaudeBackend implements AgentBackend {
 
       switch (msg.type) {
         case 'assistant': {
+          const parentId = (msg as Record<string, unknown>).parent_tool_use_id as string | undefined;
           for (const block of msg.message.content) {
             if (block.type === 'text') {
-              yield { type: 'text', content: block.text };
+              yield { type: 'text', content: block.text, ...(parentId && { parentToolUseId: parentId }) };
             } else if (block.type === 'thinking') {
-              yield { type: 'thinking', content: block.thinking };
+              yield { type: 'thinking', content: block.thinking, ...(parentId && { parentToolUseId: parentId }) };
             } else if (block.type === 'tool_use') {
               yield {
                 type: 'tool_use',
@@ -216,6 +217,7 @@ export class ClaudeBackend implements AgentBackend {
                 toolName: block.name,
                 toolInput: block.input as Record<string, unknown>,
                 toolUseId: block.id,
+                ...(parentId && { parentToolUseId: parentId }),
               };
             }
           }
@@ -223,6 +225,7 @@ export class ClaudeBackend implements AgentBackend {
         }
 
         case 'user': {
+          const parentId = (msg as Record<string, unknown>).parent_tool_use_id as string | undefined;
           const userContent = (msg as Record<string, unknown>).message as { content?: unknown[] } | undefined;
           if (Array.isArray(userContent?.content)) {
             for (const block of userContent.content) {
@@ -235,6 +238,7 @@ export class ClaudeBackend implements AgentBackend {
                   type: 'tool_result',
                   content: resultContent.slice(0, 5000),
                   toolUseId: String(b.tool_use_id || ''),
+                  ...(parentId && { parentToolUseId: parentId }),
                 };
               }
             }
@@ -289,8 +293,13 @@ export class ClaudeBackend implements AgentBackend {
               this.onInitCallback?.();
             }
           }
-          if ('subtype' in msg) {
-            yield { type: 'system', content: `[${sysMsg.subtype}]` };
+          // Extract subagent results from task_notification
+          if (sysMsg.subtype === 'task_notification' && sysMsg.summary && sysMsg.tool_use_id) {
+            yield {
+              type: 'tool_result',
+              content: String(sysMsg.summary),
+              toolUseId: String(sysMsg.tool_use_id),
+            };
           }
           break;
         }

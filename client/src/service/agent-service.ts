@@ -230,6 +230,9 @@ export class AgentService {
       case 'agent:error':
         this.emit(ServiceEvent.AgentError, msg);
         break;
+      case 'agent:system':
+        this.emit(ServiceEvent.AgentSystem, msg);
+        break;
       case 'permission:request':
         this.emit(ServiceEvent.PermissionRequest, msg);
         break;
@@ -244,6 +247,9 @@ export class AgentService {
         break;
       case 'command:result':
         this.emit(ServiceEvent.CommandResult, msg);
+        break;
+      case 'task:update':
+        this.emit(ServiceEvent.TaskUpdate, msg);
         break;
       // project:created, folder:list_result are handled by Promise resolvers
       // project:list_result not currently used

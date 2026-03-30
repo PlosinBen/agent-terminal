@@ -2,10 +2,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 15px;
+  padding: 8px 18px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 15px;
 }
 
 /* ── Empty state ── */
@@ -34,7 +34,7 @@
 
 .turn-agent {
   margin-top: 4px;
-  padding: 6px 8px 6px 15px;
+  padding: 8px 15px;
   border-left: 2px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   border-radius: 0 4px 4px 0;

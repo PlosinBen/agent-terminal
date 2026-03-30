@@ -4,6 +4,7 @@ import type { AgentBackend } from './backend/types.js';
 import type { ProjectConfig } from './core/workspace.js';
 import type { FSWatcher } from 'fs';
 import type * as pty from 'node-pty';
+import type { TaskTracker } from './core/task.js';
 import { logger } from './core/logger.js';
 
 // Handlers
@@ -20,6 +21,7 @@ export interface ProjectSession {
   turns: number;
   ptyProcess: pty.IPty | null;
   gitWatcher: FSWatcher | null;
+  taskTracker: TaskTracker;
 }
 
 export class SessionManager {
@@ -94,6 +96,7 @@ export class SessionManager {
   dispose() {
     for (const session of this.sessions.values()) {
       session.backend.stop();
+      session.taskTracker.stop();
       session.gitWatcher?.close();
       session.gitWatcher = null;
       cleanupPty(session);

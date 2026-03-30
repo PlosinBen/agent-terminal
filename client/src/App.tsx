@@ -269,6 +269,7 @@ export function App() {
   const status = activeState?.status ?? { segments: [], agentStatus: 'idle' as const, gitBranch: '-' };
   const permissionReq = activeState?.permissionReq ?? null;
   const providerConfig = activeState?.providerConfig ?? null;
+  const tasks = activeState?.tasks ?? [];
 
   return (
     <div className="app-layout">
@@ -326,6 +327,7 @@ export function App() {
                 loadingHistory={activeState?.loadingHistory}
                 onLoadMore={() => activeProjectId && loadMoreHistory(activeProjectId)}
                 listRef={listRef}
+                tasks={tasks}
                 searchMatchIndices={searchOpen ? searchMatchIndices : undefined}
                 activeMatchIndex={searchOpen ? activeMatchIndex : undefined}
               />

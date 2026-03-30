@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, useState, type RefObject } from 'react';
 import type { Message } from '../types/message';
+import type { TaskInfo } from '@shared/protocol';
 import type { AppSettings } from '../settings';
 import { MarkdownBlock } from './messages/MarkdownBlock';
 import { ThinkingBlock } from './messages/ThinkingBlock';
@@ -15,6 +16,7 @@ interface Props {
   loadingHistory?: boolean;
   onLoadMore?: () => void;
   listRef?: RefObject<HTMLDivElement | null>;
+  tasks?: TaskInfo[];
   searchMatchIndices?: Set<number>;
   activeMatchIndex?: number;
 }
@@ -56,7 +58,7 @@ function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
   return groups;
 }
 
-export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore, listRef: externalListRef, searchMatchIndices, activeMatchIndex }: Props) {
+export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore, listRef: externalListRef, tasks, searchMatchIndices, activeMatchIndex }: Props) {
   const internalListRef = useRef<HTMLDivElement>(null);
   const listRef = externalListRef ?? internalListRef;
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -137,6 +139,16 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
     return toggled.has(index) ? !defaultCollapsed : defaultCollapsed;
   }
 
+  // Build map of child messages grouped by parentToolUseId
+  const childMessagesMap = new Map<string, { msg: Message; index: number }[]>();
+  messages.forEach((msg, i) => {
+    if (msg.parentToolUseId) {
+      const list = childMessagesMap.get(msg.parentToolUseId) || [];
+      list.push({ msg, index: i });
+      childMessagesMap.set(msg.parentToolUseId, list);
+    }
+  });
+
   const turns = groupIntoTurns(messages);
 
   function searchClass(i: number): string {
@@ -145,6 +157,9 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
   }
 
   function renderMessage(msg: Message, i: number) {
+    // Skip child messages — they are rendered inside their parent Task block
+    if (msg.parentToolUseId) return null;
+
     switch (msg.messageType) {
       case 'thinking':
         if (getDisplayMode(msg) === 'hidden') return null;
@@ -167,6 +182,8 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
               collapsed={isCollapsed(msg, i)}
               onToggle={() => toggle(i)}
               cwd={cwd}
+              tasks={tasks}
+              childMessages={msg.toolUseId ? childMessagesMap.get(msg.toolUseId) : undefined}
             />
           </div>
         );

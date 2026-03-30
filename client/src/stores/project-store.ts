@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DownstreamMessage } from '@shared/protocol';
+import type { DownstreamMessage, TaskInfo } from '@shared/protocol';
 import type { ProjectInfo } from '../types/project';
 import type { Message, StatusInfo, PermissionReq, ProviderConfig } from '../types/message';
 import type { AgentService } from '../service/agent-service';
@@ -18,6 +18,7 @@ export interface PerProjectState {
   status: StatusInfo;
   permissionReq: PermissionReq | null;
   providerConfig: ProviderConfig | null;
+  tasks: TaskInfo[];
   hasMoreHistory: boolean;
   loadingHistory: boolean;
 }
@@ -35,6 +36,7 @@ function createPerProjectState(): PerProjectState {
     status: { ...DEFAULT_STATUS },
     permissionReq: null,
     providerConfig: null,
+    tasks: [],
     hasMoreHistory: false,
     loadingHistory: false,
   };
@@ -372,10 +374,10 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
           case 'agent:text': {
             const messages = [...ps.messages];
             const last = messages[messages.length - 1];
-            if (last?.role === 'assistant' && last.messageType === 'text') {
+            if (last?.role === 'assistant' && last.messageType === 'text' && last.parentToolUseId === msg.parentToolUseId) {
               messages[messages.length - 1] = { ...last, content: last.content + msg.content };
             } else {
-              messages.push({ role: 'assistant', content: msg.content.trimStart(), messageType: 'text', timestamp: Date.now() });
+              messages.push({ role: 'assistant', content: msg.content.trimStart(), messageType: 'text', timestamp: Date.now(), parentToolUseId: msg.parentToolUseId });
             }
             updated = { ...ps, messages };
             break;
@@ -386,13 +388,13 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             let thinkingIdx = -1;
             for (let j = messages.length - 1; j >= 0; j--) {
               const m = messages[j];
-              if (m.messageType === 'thinking') { thinkingIdx = j; break; }
+              if (m.messageType === 'thinking' && m.parentToolUseId === msg.parentToolUseId) { thinkingIdx = j; break; }
               if (m.messageType !== 'tool_use') break;
             }
             if (thinkingIdx >= 0) {
               messages[thinkingIdx] = { ...messages[thinkingIdx], content: messages[thinkingIdx].content + msg.content };
             } else {
-              messages.push({ role: 'assistant', content: msg.content, messageType: 'thinking', collapsible: true, timestamp: Date.now() });
+              messages.push({ role: 'assistant', content: msg.content, messageType: 'thinking', collapsible: true, timestamp: Date.now(), parentToolUseId: msg.parentToolUseId });
             }
             updated = { ...ps, messages };
             break;
@@ -404,6 +406,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
               messages: [...ps.messages, {
                 role: 'assistant', content: msg.content, messageType: 'tool_use',
                 toolName: msg.toolName, toolUseId: msg.toolUseId, toolInput: msg.toolInput,
+                parentToolUseId: msg.parentToolUseId,
                 collapsible: true, timestamp: Date.now(),
               }],
             };
@@ -419,6 +422,17 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
               }
             }
             updated = { ...ps, messages };
+            break;
+          }
+
+          case 'agent:system': {
+            updated = {
+              ...ps,
+              messages: [...ps.messages, {
+                role: 'system', content: msg.content, messageType: 'text',
+                parentToolUseId: msg.parentToolUseId, timestamp: Date.now(),
+              }],
+            };
             break;
           }
 
@@ -471,6 +485,10 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             };
             break;
 
+          case 'task:update':
+            updated = { ...ps, tasks: msg.tasks };
+            break;
+
           default:
             return s;
         }
@@ -518,9 +536,11 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
       service.on(ServiceEvent.AgentResult, handleMsg),
       service.on(ServiceEvent.AgentDone, handleMsg),
       service.on(ServiceEvent.AgentError, handleMsg),
+      service.on(ServiceEvent.AgentSystem, handleMsg),
       service.on(ServiceEvent.PermissionRequest, handleMsg),
       service.on(ServiceEvent.StatusUpdate, handleMsg),
       service.on(ServiceEvent.CommandResult, handleMsg),
+      service.on(ServiceEvent.TaskUpdate, handleMsg),
       service.on(ServiceEvent.ConnectionChanged, handleConnectionChanged),
     ];
 

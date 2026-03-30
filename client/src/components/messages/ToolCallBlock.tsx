@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { Message } from '../../types/message';
+import type { TaskInfo } from '@shared/protocol';
 import './ToolCallBlock.css';
 
 interface Props {
@@ -6,6 +8,8 @@ interface Props {
   collapsed: boolean;
   onToggle: () => void;
   cwd?: string;
+  tasks?: TaskInfo[];
+  childMessages?: { msg: Message; index: number }[];
 }
 
 function truncate(str: string, max: number): string {
@@ -38,6 +42,7 @@ function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: 
     case 'Grep':
       return `${input.pattern || ''} ${input.path ? `in ${stripCwd(String(input.path), cwd)}` : ''}`.trim();
     case 'Task':
+    case 'Agent':
       return truncate(String(input.description || input.prompt || ''), 80);
     case 'TodoWrite':
       return 'update tasks';
@@ -153,13 +158,35 @@ function GrepContent({ input, cwd }: { input: Record<string, unknown>; cwd?: str
   );
 }
 
-function TaskContent({ input }: { input: Record<string, unknown> }) {
+function parseTaskResult(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((block: Record<string, unknown>) => {
+          if (block.type !== 'text') return false;
+          const text = String(block.text || '');
+          // Filter out SDK metadata (agentId, usage)
+          if (text.startsWith('agentId:') || text.startsWith('<usage>')) return false;
+          return true;
+        })
+        .map((block: Record<string, unknown>) => String(block.text || ''))
+        .join('\n');
+    }
+  } catch {
+    // Not JSON — return as-is but strip trailing metadata
+  }
+  return raw.replace(/\nagentId:[\s\S]*$/, '').trim();
+}
+
+function TaskContent({ input, result }: { input: Record<string, unknown>; result?: string }) {
+  const cleanResult = result ? parseTaskResult(result) : '';
   return (
     <div className="tool-content">
-      {input.description && <div className="tool-description">{String(input.description)}</div>}
-      {input.prompt && (
+      {!result && input.prompt && (
         <pre className="tool-code">{truncate(String(input.prompt), 500)}</pre>
       )}
+      {cleanResult && <pre className="tool-code task-result">{truncate(cleanResult, 2000)}</pre>}
     </div>
   );
 }
@@ -202,18 +229,58 @@ function renderToolBody(toolName: string, input: Record<string, unknown>, cwd?: 
     case 'Read': return <ReadContent input={input} cwd={cwd} result={result} />;
     case 'Glob': return <GlobContent input={input} />;
     case 'Grep': return <GrepContent input={input} cwd={cwd} />;
-    case 'Task': return <TaskContent input={input} />;
+    case 'Task':
+    case 'Agent': return <TaskContent input={input} result={result} />;
     case 'TodoWrite': return <TodoContent input={input} />;
     default: return <GenericContent input={input} />;
   }
 }
 
-export function ToolCallBlock({ msg, collapsed, onToggle, cwd }: Props) {
+function TaskBadge({ status }: { status: 'running' | 'stalled' }) {
+  return (
+    <span className={`task-badge task-badge--${status}`}>
+      {status === 'running' ? 'Running' : 'Stalled'}
+    </span>
+  );
+}
+
+function ChildToolCall({ msg, cwd }: { msg: Message; cwd?: string }) {
+  const [collapsed, setCollapsed] = useState(true);
+  return (
+    <ToolCallBlock
+      msg={msg}
+      collapsed={collapsed}
+      onToggle={() => setCollapsed(!collapsed)}
+      cwd={cwd}
+    />
+  );
+}
+
+function renderChildMessage(child: Message, key: number, cwd?: string) {
+  if (child.messageType === 'tool_use') {
+    return <ChildToolCall key={key} msg={child} cwd={cwd} />;
+  }
+  if (child.messageType === 'text' && child.role === 'assistant') {
+    return (
+      <div key={key} className="task-child-text">{truncate(child.content, 200)}</div>
+    );
+  }
+  // Skip thinking, system, and other internal messages for cleanliness
+  return null;
+}
+
+export function ToolCallBlock({ msg, collapsed, onToggle, cwd, tasks, childMessages }: Props) {
   const toolName = msg.toolName || 'unknown';
   const input = msg.toolInput || {};
   const result = msg.toolResult;
   const summary = getToolSummary(toolName, input, cwd);
-  const hasBody = toolName === 'Read' ? !!result : toolName !== 'Bash';
+  const hasChildren = (toolName === 'Task' || toolName === 'Agent') && childMessages && childMessages.length > 0;
+  const hasBody = toolName === 'Read' ? !!result : toolName !== 'Bash' || hasChildren;
+
+  // Find active task status for Task tool calls
+  const taskInfo = toolName === 'Task' && msg.toolUseId && tasks
+    ? tasks.find(t => t.id === msg.toolUseId)
+    : undefined;
 
   return (
     <div className="tool-block">
@@ -221,8 +288,15 @@ export function ToolCallBlock({ msg, collapsed, onToggle, cwd }: Props) {
         {hasBody && <span className={`tool-chevron${collapsed ? '' : ' expanded'}`}>&#9654;</span>}
         <span className="tool-name">{toolName}</span>
         {summary && <span className="tool-summary">{summary}</span>}
+        {taskInfo && <TaskBadge status={taskInfo.status as 'running' | 'stalled'} />}
+        {hasChildren && collapsed && <span className="task-child-count">{childMessages.length}</span>}
       </div>
       {hasBody && !collapsed && renderToolBody(toolName, input, cwd, result)}
+      {hasChildren && !collapsed && (
+        <div className="task-children">
+          {childMessages.map(({ msg: child, index }) => renderChildMessage(child, index, cwd))}
+        </div>
+      )}
     </div>
   );
 }

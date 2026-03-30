@@ -106,12 +106,14 @@ export interface AgentTextMsg {
   type: 'agent:text';
   projectId: string;
   content: string;
+  parentToolUseId?: string;
 }
 
 export interface AgentThinkingMsg {
   type: 'agent:thinking';
   projectId: string;
   content: string;
+  parentToolUseId?: string;
 }
 
 export interface AgentToolUseMsg {
@@ -121,6 +123,7 @@ export interface AgentToolUseMsg {
   toolUseId: string;
   toolInput: Record<string, unknown>;
   content: string;
+  parentToolUseId?: string;
 }
 
 export interface AgentToolResultMsg {
@@ -128,6 +131,7 @@ export interface AgentToolResultMsg {
   projectId: string;
   toolUseId: string;
   content: string;
+  parentToolUseId?: string;
 }
 
 export interface AgentResultMsg {
@@ -152,6 +156,7 @@ export interface AgentSystemMsg {
   type: 'agent:system';
   projectId: string;
   content: string;
+  parentToolUseId?: string;
 }
 
 export interface PermissionRequestMsg {
@@ -225,6 +230,22 @@ export interface CommandResultMsg {
   updated?: { model?: string; permissionMode?: string; effort?: string };
 }
 
+export type TaskStatus = 'running' | 'stalled' | 'completed' | 'stopped' | 'error';
+
+export interface TaskInfo {
+  id: string;
+  description: string;
+  status: TaskStatus;
+  startedAt: number;
+  lastProgressAt: number;
+}
+
+export interface TaskUpdateMsg {
+  type: 'task:update';
+  projectId: string;
+  tasks: TaskInfo[];
+}
+
 export type DownstreamMessage =
   | AgentTextMsg
   | AgentThinkingMsg
@@ -243,4 +264,5 @@ export type DownstreamMessage =
   | ProjectListResultMsg
   | FolderListResultMsg
   | ServerInfoResultMsg
-  | CommandResultMsg;
+  | CommandResultMsg
+  | TaskUpdateMsg;

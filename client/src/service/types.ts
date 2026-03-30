@@ -11,6 +11,7 @@ export const ServiceEvent = {
   AgentResult: 'agent:result',
   AgentDone: 'agent:done',
   AgentError: 'agent:error',
+  AgentSystem: 'agent:system',
 
   // Permission
   PermissionRequest: 'permission:request',
@@ -24,6 +25,9 @@ export const ServiceEvent = {
   // PTY
   PtyOutput: 'pty:output',
   PtyExit: 'pty:exit',
+
+  // Task tracking
+  TaskUpdate: 'task:update',
 
   // Connection lifecycle
   ConnectionChanged: 'connection:changed',

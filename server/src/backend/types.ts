@@ -7,6 +7,7 @@ export interface AgentMessage {
   toolName?: string;
   toolInput?: Record<string, unknown>;
   toolUseId?: string;
+  parentToolUseId?: string;
   sessionId?: string;
   costUsd?: number;
   inputTokens?: number;
