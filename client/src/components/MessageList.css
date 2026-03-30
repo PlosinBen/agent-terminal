@@ -112,6 +112,21 @@
 
 /* ── Load more sentinel ── */
 
+/* ── Search highlight ── */
+
+.msg-search-match {
+  background: rgba(255, 200, 0, 0.08);
+  border-radius: 3px;
+}
+
+.msg-search-active {
+  background: rgba(255, 200, 0, 0.2);
+  border-left: 2px solid #e5c07b;
+  border-radius: 3px;
+}
+
+/* ── Load more sentinel ── */
+
 .load-more-sentinel {
   display: flex;
   justify-content: center;

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, type RefObject } from 'react';
 import type { Message } from '../types/message';
 import type { AppSettings } from '../settings';
 import { MarkdownBlock } from './messages/MarkdownBlock';
@@ -14,6 +14,9 @@ interface Props {
   hasMoreHistory?: boolean;
   loadingHistory?: boolean;
   onLoadMore?: () => void;
+  listRef?: RefObject<HTMLDivElement | null>;
+  searchMatchIndices?: Set<number>;
+  activeMatchIndex?: number;
 }
 
 interface Turn {
@@ -53,8 +56,9 @@ function groupIntoTurns(messages: Message[]): TurnOrDivider[] {
   return groups;
 }
 
-export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore }: Props) {
-  const listRef = useRef<HTMLDivElement>(null);
+export function MessageList({ messages, loading, cwd, display, hasMoreHistory, loadingHistory, onLoadMore, listRef: externalListRef, searchMatchIndices, activeMatchIndex }: Props) {
+  const internalListRef = useRef<HTMLDivElement>(null);
+  const listRef = externalListRef ?? internalListRef;
   const bottomRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -135,12 +139,17 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
 
   const turns = groupIntoTurns(messages);
 
+  function searchClass(i: number): string {
+    if (!searchMatchIndices?.has(i)) return '';
+    return activeMatchIndex === i ? ' msg-search-active' : ' msg-search-match';
+  }
+
   function renderMessage(msg: Message, i: number) {
     switch (msg.messageType) {
       case 'thinking':
         if (getDisplayMode(msg) === 'hidden') return null;
         return (
-          <div key={i} className="msg">
+          <div key={i} className={`msg${searchClass(i)}`} data-msg-index={i}>
             <ThinkingBlock
               content={msg.content}
               collapsed={isCollapsed(msg, i)}
@@ -152,7 +161,7 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
       case 'tool_use':
         if (getDisplayMode(msg) === 'hidden') return null;
         return (
-          <div key={i} className="msg">
+          <div key={i} className={`msg${searchClass(i)}`} data-msg-index={i}>
             <ToolCallBlock
               msg={msg}
               collapsed={isCollapsed(msg, i)}
@@ -174,7 +183,7 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
       default: {
         if (msg.role === 'assistant') {
           return (
-            <div key={i} className="msg msg-assistant">
+            <div key={i} className={`msg msg-assistant${searchClass(i)}`} data-msg-index={i}>
               <MarkdownBlock content={msg.content} />
             </div>
           );
@@ -183,7 +192,7 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
         // system / error
         const isError = msg.messageType === 'error';
         return (
-          <div key={i} className={`msg ${isError ? 'msg-error' : 'msg-system'}`}>
+          <div key={i} className={`msg ${isError ? 'msg-error' : 'msg-system'}${searchClass(i)}`} data-msg-index={i}>
             <span className="msg-label">{isError ? 'Error' : 'System'}:</span>
             <span className="msg-content">{msg.content}</span>
           </div>
@@ -212,7 +221,7 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
         ) : (
           <div key={ti} className="turn">
             {item.user && (
-              <div className="msg msg-user">
+              <div className={`msg msg-user${searchClass(item.user.index)}`} data-msg-index={item.user.index}>
                 <span className="msg-content">{item.user.msg.content}</span>
               </div>
             )}

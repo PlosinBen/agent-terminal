@@ -16,6 +16,7 @@ import { useServerStore } from './stores/server-store';
 import { useProjectStore } from './stores/project-store';
 import { rotateOldMessages } from './storage/chat-history';
 import { exportMarkdown, exportJSON, downloadFile } from './utils/export';
+import { SearchBar } from './components/SearchBar';
 
 declare global {
   interface Window {
@@ -77,11 +78,22 @@ export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchMatchIndices, setSearchMatchIndices] = useState<Set<number>>(new Set());
+  const [activeMatchIndex, setActiveMatchIndex] = useState<number>(-1);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const [keybindings, setKeybindings] = useState<KeybindingConfig>(loadKeybindings);
   const reloadKeybindings = useCallback(() => setKeybindings(loadKeybindings()), []);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const reloadSettings = useCallback(() => setSettings(loadSettings()), []);
+
+  // Close search when switching projects
+  useEffect(() => {
+    setSearchOpen(false);
+    setSearchMatchIndices(new Set());
+    setActiveMatchIndex(-1);
+  }, [activeProjectId]);
 
   // Start keyboard service once
   useEffect(() => {
@@ -158,6 +170,7 @@ export function App() {
       const idx = list.findIndex(p => p.id === curId);
       setActiveProjectId(list[(idx - 1 + list.length) % list.length].id);
     },
+    [keybindings.searchMessages]: () => setSearchOpen(true),
     [keybindings.toggleTerminal]: () => switchTab(1),
     [keybindings.nextTab]: () => switchTab(1),
     [keybindings.prevTab]: () => switchTab(-1),
@@ -289,6 +302,21 @@ export function App() {
         {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
+              {searchOpen && (
+                <SearchBar
+                  messages={messages}
+                  onClose={() => {
+                    setSearchOpen(false);
+                    setSearchMatchIndices(new Set());
+                    setActiveMatchIndex(-1);
+                  }}
+                  onMatchChange={(matches, currentIndex) => {
+                    setSearchMatchIndices(new Set(matches));
+                    setActiveMatchIndex(currentIndex);
+                  }}
+                  listRef={listRef}
+                />
+              )}
               <MessageList
                 messages={messages}
                 loading={loading}
@@ -297,6 +325,9 @@ export function App() {
                 hasMoreHistory={activeState?.hasMoreHistory}
                 loadingHistory={activeState?.loadingHistory}
                 onLoadMore={() => activeProjectId && loadMoreHistory(activeProjectId)}
+                listRef={listRef}
+                searchMatchIndices={searchOpen ? searchMatchIndices : undefined}
+                activeMatchIndex={searchOpen ? activeMatchIndex : undefined}
               />
               <InputArea disabled={loading} cwd={activeProject?.cwd} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Scope = 'app' | 'folder-picker' | 'folder-picker-form' | 'settings';
+export type Scope = 'app' | 'folder-picker' | 'folder-picker-form' | 'settings' | 'search';
 
 interface AppState {
   /** Stack of active keyboard scopes. Top = current foreground. */

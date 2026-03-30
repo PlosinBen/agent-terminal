@@ -17,6 +17,8 @@ export type Action =
   | 'toggleTerminal'
   | 'nextTab'
   | 'prevTab'
+  // Search
+  | 'searchMessages'
   // Folder Picker
   | 'fpNextServer'
   | 'fpPrevServer';
@@ -33,6 +35,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingConfig = {
   toggleTerminal: 'mod+`',
   nextTab: 'mod+ArrowRight',
   prevTab: 'mod+ArrowLeft',
+  // Search
+  searchMessages: 'mod+f',
   // Folder Picker
   fpNextServer: 'Tab',
   fpPrevServer: 'shift+Tab',

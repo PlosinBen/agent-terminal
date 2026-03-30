@@ -30,6 +30,7 @@ const ACTION_LABELS: Record<Action, string> = {
   toggleTerminal: 'Toggle Terminal',
   nextTab: 'Next Tab',
   prevTab: 'Previous Tab',
+  searchMessages: 'Search Messages',
   fpNextServer: 'Next Server',
   fpPrevServer: 'Previous Server',
 };
@@ -37,7 +38,7 @@ const ACTION_LABELS: Record<Action, string> = {
 const KB_CATEGORIES: { label: string; actions: Action[] }[] = [
   {
     label: 'Global',
-    actions: ['toggleSidebar', 'newProject', 'closeProject', 'prevProject', 'nextProject', 'toggleTerminal', 'nextTab', 'prevTab'],
+    actions: ['toggleSidebar', 'newProject', 'closeProject', 'prevProject', 'nextProject', 'toggleTerminal', 'nextTab', 'prevTab', 'searchMessages'],
   },
   {
     label: 'Folder Picker',
