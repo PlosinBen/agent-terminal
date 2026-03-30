@@ -90,6 +90,7 @@ body {
 }
 
 .tab-btn {
+  position: relative;
   padding: 6px 16px;
   background: none;
   border: none;
@@ -100,6 +101,16 @@ body {
   cursor: pointer;
 }
 
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d19a66;
+}
+
 .tab-btn:hover {
   color: var(--text-primary);
 }
@@ -107,6 +118,33 @@ body {
 .tab-btn.active {
   color: var(--text-primary);
   border-bottom-color: var(--accent);
+}
+
+.agent-notify-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid #d19a66;
+  color: #d19a66;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.agent-notify-banner:hover {
+  background: rgba(209, 154, 102, 0.25);
+}
+
+.agent-notify-banner-action {
+  font-size: 12px;
+  opacity: 0.8;
 }
 
 .tab-bar-spacer {

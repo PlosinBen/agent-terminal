@@ -20,6 +20,7 @@ export interface PerProjectState {
   providerConfig: ProviderConfig | null;
   tasks: TaskInfo[];
   autoAllowTools: Set<string>;
+  agentNotify: boolean;
   hasMoreHistory: boolean;
   loadingHistory: boolean;
 }
@@ -39,6 +40,7 @@ function createPerProjectState(): PerProjectState {
     providerConfig: null,
     tasks: [],
     autoAllowTools: new Set(),
+    agentNotify: false,
     hasMoreHistory: false,
     loadingHistory: false,
   };
@@ -82,6 +84,7 @@ interface ProjectStoreState {
   clearMessages: (projectId: string) => void;
   clearPermission: (projectId: string) => void;
   addAutoAllowTool: (projectId: string, toolName: string) => void;
+  clearAgentNotify: (projectId: string) => void;
   loadMoreHistory: (projectId: string) => Promise<void>;
 
   // Config
@@ -353,6 +356,19 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
     });
   },
 
+  clearAgentNotify: (projectId) => {
+    set(s => {
+      const ps = s.projectStates[projectId];
+      if (!ps || !ps.agentNotify) return s;
+      return {
+        projectStates: {
+          ...s.projectStates,
+          [projectId]: { ...ps, agentNotify: false },
+        },
+      };
+    });
+  },
+
   // ── Config update (merges sessionId/model/etc into projects array) ──
 
   applyConfigUpdate: (update) => {
@@ -462,7 +478,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             return s; // no state change for this message
 
           case 'agent:done':
-            updated = { ...ps, loading: false };
+            updated = { ...ps, loading: false, agentNotify: true };
             setTimeout(() => {
               get().applyConfigUpdate({ projectId: pid, agentStatus: 'idle' });
               const msgs = get().projectStates[pid]?.messages;

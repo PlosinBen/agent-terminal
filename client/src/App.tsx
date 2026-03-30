@@ -70,7 +70,7 @@ export function App() {
   const activeProject = useProjectStore(s => s.activeProject());
   const activeState = useProjectStore(s => s.activeState());
   const { createProject, closeProject, reorderProjects, connectProject,
-    addUserMessage, clearMessages, clearPermission, applyConfigUpdate, loadMoreHistory } = useProjectStore.getState();
+    addUserMessage, clearMessages, clearPermission, clearAgentNotify, applyConfigUpdate, loadMoreHistory } = useProjectStore.getState();
 
   // UI state
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -149,7 +149,9 @@ export function App() {
     if (!isConnected()) return;
     setActiveTab(t => {
       const idx = TABS.indexOf(t);
-      return TABS[(idx + direction + TABS.length) % TABS.length];
+      const next = TABS[(idx + direction + TABS.length) % TABS.length];
+      if (next === 'agent' && activeProjectId) clearAgentNotify(activeProjectId);
+      return next;
     });
   };
 
@@ -285,6 +287,13 @@ export function App() {
   const permissionReq = activeState?.permissionReq ?? null;
   const providerConfig = activeState?.providerConfig ?? null;
   const tasks = activeState?.tasks ?? [];
+  const agentNotify = activeState?.agentNotify ?? false;
+  const showAgentBadge = activeTab !== 'agent' && (permissionReq !== null || agentNotify);
+
+  const switchToAgent = useCallback(() => {
+    setActiveTab('agent');
+    if (activeProjectId) clearAgentNotify(activeProjectId);
+  }, [activeProjectId, clearAgentNotify]);
 
   return (
     <div className="app-layout">
@@ -303,8 +312,8 @@ export function App() {
               <>
                 <button
                   className={`tab-btn${activeTab === 'agent' ? ' active' : ''}`}
-                  onClick={() => setActiveTab('agent')}
-                >Agent</button>
+                  onClick={switchToAgent}
+                >Agent{showAgentBadge && <span className="tab-badge" />}</button>
                 <button
                   className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
                   onClick={() => setActiveTab('terminal')}
@@ -350,12 +359,22 @@ export function App() {
               />
               <InputArea disabled={loading} cwd={activeProject?.cwd} providerConfig={providerConfig} onSubmit={handleSubmit} onStop={handleStop} onCommand={handleCommand} />
             </div>
-            <Terminal
-              project={activeProject!}
-              visible={activeTab === 'terminal'}
-              service={service}
-              appearance={settings.appearance}
-            />
+            <div style={{ display: activeTab === 'terminal' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}>
+              {showAgentBadge && (
+                <div className="agent-notify-banner" onClick={switchToAgent}>
+                  {permissionReq
+                    ? `Agent requires permission — ${permissionReq.toolName}`
+                    : 'Agent has finished'}
+                  <span className="agent-notify-banner-action">Switch to Agent →</span>
+                </div>
+              )}
+              <Terminal
+                project={activeProject!}
+                visible={activeTab === 'terminal'}
+                service={service}
+                appearance={settings.appearance}
+              />
+            </div>
             <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={updateProjectConfig} />
             {activeProject?.connectionStatus === 'reconnecting' && (
               <div className="reconnecting-overlay">Reconnecting...</div>
