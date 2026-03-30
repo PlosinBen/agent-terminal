@@ -315,7 +315,7 @@ export function App() {
             )}
           </div>
         )}
-        {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') ? (
+        {activeProjectId && (activeProject?.connectionStatus === 'connected' || activeProject?.connectionStatus === 'reconnecting') && providerConfig ? (
           <>
             <div className="agent-view" style={{ display: activeTab === 'agent' ? 'flex' : 'none' }}>
               {searchOpen && (
@@ -361,6 +361,12 @@ export function App() {
               <div className="reconnecting-overlay">Reconnecting...</div>
             )}
           </>
+        ) : activeProjectId && activeProject && (activeProject.connectionStatus === 'connected' || activeProject.connectionStatus === 'connecting') ? (
+          <div className="empty-state">
+            {activeProject.connectionStatus === 'connecting'
+              ? <>Connecting to <strong>&nbsp;{activeProject.name}</strong>...</>
+              : <>Initializing agent...</>}
+          </div>
         ) : activeProjectId && activeProject ? (
           <div
             className="empty-state connect-prompt"
@@ -369,9 +375,7 @@ export function App() {
             tabIndex={0}
             ref={(el) => el?.focus()}
           >
-            {activeProject.connectionStatus === 'connecting'
-              ? <>Connecting to <strong>&nbsp;{activeProject.name}</strong>...</>
-              : <>Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong></>}
+            Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong>
           </div>
         ) : (
           <div className="empty-state">

@@ -53,10 +53,8 @@ export function handleProjectCreate(
     project: { id: project.id, name: project.name, cwd: project.cwd },
   });
 
-  // Send initial status (git branch, etc.) immediately
-  if (wsServer) broadcastStatus(session, project.id, wsServer);
-
   // Warm-up: initialize SDK to get provider config (models, commands) early
+  // First status:update will be sent via backend.onInit() callback above
   backend.warmup(project.cwd).catch(() => {});
 }
 
