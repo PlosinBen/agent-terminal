@@ -122,9 +122,9 @@ export function App() {
 
   // Auto-open folder picker on first connect if no saved projects
   useEffect(() => {
-    if (!localConnected || useProjectStore.getState().projects.length > 0) return;
+    if (!localConnected || homePath === '/' || useProjectStore.getState().projects.length > 0) return;
     setShowFolderPicker(true);
-  }, [localConnected]);
+  }, [localConnected, homePath]);
 
   // Connect the active project explicitly
   const connectActiveProject = useCallback(() => {

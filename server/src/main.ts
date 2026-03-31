@@ -139,9 +139,12 @@ function setupAutoUpdater() {
 }
 
 app.on('window-all-closed', () => {
-  serverProcess?.kill();
-  serverProcess = null;
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  serverProcess?.kill();
+  serverProcess = null;
 });

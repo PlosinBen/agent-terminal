@@ -54,6 +54,7 @@ export function FolderPicker({
   currentPathRef.current = currentPath;
   const activeHostRef = useRef(activeHost);
   activeHostRef.current = activeHost;
+  const requestSeqRef = useRef(0);
 
   const requestFolder = useCallback((path: string) => {
     setLoading(true);
@@ -61,12 +62,36 @@ export function FolderPicker({
     setFilter('');
     setSelectedIndex(0);
 
-    service.listFolders({ host: activeHostRef.current, name: '' }, path).then((result) => {
-      setCurrentPath(result.path);
-      setEntries(result.entries);
-      setError(result.error ?? null);
-      setLoading(false);
-    });
+    const seq = ++requestSeqRef.current;
+    const maxRetries = 2;
+
+    const attempt = (retry: number) => {
+      const timeoutId = setTimeout(() => {
+        if (requestSeqRef.current === seq && retry < maxRetries) {
+          attempt(retry + 1);
+        }
+      }, 3000);
+
+      service.listFolders({ host: activeHostRef.current, name: '' }, path).then((result) => {
+        clearTimeout(timeoutId);
+        if (requestSeqRef.current !== seq) return;
+        setCurrentPath(result.path);
+        setEntries(result.entries);
+        setError(result.error ?? null);
+        setLoading(false);
+      }).catch(() => {
+        clearTimeout(timeoutId);
+        if (requestSeqRef.current !== seq) return;
+        if (retry < maxRetries) {
+          attempt(retry + 1);
+        } else {
+          setError('Failed to list folders');
+          setLoading(false);
+        }
+      });
+    };
+
+    attempt(0);
   }, [service]);
 
   // Track server connection statuses
