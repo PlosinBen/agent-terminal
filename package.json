@@ -1,6 +1,6 @@
 {
   "name": "agent-terminal",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "description": "Agent terminal — Electron + WebSocket",
   "author": "Ben <PlosinBen@gmail.com>",
