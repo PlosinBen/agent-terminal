@@ -44,13 +44,6 @@ export function InputArea({ disabled, cwd, providerConfig, onSubmit, onStop, onC
       : options;
   }, []);
 
-  // Delay focus to avoid Electron Chromium injecting '\n' into textarea
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
-  }, []);
-
   // Reset escPending when agent stops
   useEffect(() => {
     if (!disabled) {

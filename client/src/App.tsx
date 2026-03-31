@@ -145,14 +145,25 @@ export function App() {
     return p?.connectionStatus === 'connected' || p?.connectionStatus === 'reconnecting';
   };
 
+  const focusActiveTab = useCallback((tab?: Tab) => {
+    requestAnimationFrame(() => {
+      const target = tab ?? activeTab;
+      if (target === 'terminal') {
+        // Focus xterm terminal
+        (document.querySelector('.terminal-container .xterm-helper-textarea') as HTMLElement)?.focus();
+      } else {
+        (document.querySelector('.input-field') as HTMLElement)?.focus();
+      }
+    });
+  }, [activeTab]);
+
   const switchTab = (direction: 1 | -1) => {
     if (!isConnected()) return;
-    setActiveTab(t => {
-      const idx = TABS.indexOf(t);
-      const next = TABS[(idx + direction + TABS.length) % TABS.length];
-      if (next === 'agent' && activeProjectId) clearAgentNotify(activeProjectId);
-      return next;
-    });
+    const currentIdx = TABS.indexOf(activeTab);
+    const next = TABS[(currentIdx + direction + TABS.length) % TABS.length];
+    if (next === 'agent' && activeProjectId) clearAgentNotify(activeProjectId);
+    setActiveTab(next);
+    focusActiveTab(next);
   };
 
   // App-scope keyboard shortcuts (only active when no modal is open)
@@ -221,7 +232,11 @@ export function App() {
     }
 
     if (['model', 'mode', 'effort'].includes(command)) {
-      if (args) updateProjectConfig(command, args);
+      if (args) {
+        updateProjectConfig(command, args);
+        // Show feedback: echo the command and confirm the change
+        addUserMessage(activeProjectId, `/${command} ${args}`, false);
+      }
       return;
     }
 
@@ -290,10 +305,25 @@ export function App() {
   const agentNotify = activeState?.agentNotify ?? false;
   const showAgentBadge = activeTab !== 'agent' && (permissionReq !== null || agentNotify);
 
+  // Focus active tab when project fully ready (connected + providerConfig arrived → UI mounted)
+  const isProjectReady = activeProject?.connectionStatus === 'connected' && !!providerConfig;
+  useEffect(() => {
+    if (isProjectReady) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (activeTab === 'terminal') {
+          (document.querySelector('.terminal-container .xterm-helper-textarea') as HTMLElement)?.focus();
+        } else {
+          (document.querySelector('.input-field') as HTMLElement)?.focus();
+        }
+      }));
+    }
+  }, [isProjectReady]);
+
   const switchToAgent = useCallback(() => {
     setActiveTab('agent');
     if (activeProjectId) clearAgentNotify(activeProjectId);
-  }, [activeProjectId, clearAgentNotify]);
+    focusActiveTab('agent');
+  }, [activeProjectId, clearAgentNotify, focusActiveTab]);
 
   return (
     <div className="app-layout">
@@ -316,7 +346,7 @@ export function App() {
                 >Agent{showAgentBadge && <span className="tab-badge" />}</button>
                 <button
                   className={`tab-btn${activeTab === 'terminal' ? ' active' : ''}`}
-                  onClick={() => setActiveTab('terminal')}
+                  onClick={() => { setActiveTab('terminal'); focusActiveTab('terminal'); }}
                 >Terminal</button>
                 <div className="tab-bar-spacer" />
                 <ExportMenu onExport={(fmt) => handleCommand('export', fmt)} />

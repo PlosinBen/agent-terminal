@@ -129,14 +129,14 @@ export function useTerminal(project: ProjectInfo, visible: boolean, service: Age
     return () => window.removeEventListener('resize', onResize);
   }, [visible]);
 
-  // Re-fit when switching back to terminal tab
+  // Re-fit and focus when switching back to terminal tab or when first output arrives
   useEffect(() => {
     if (!visible || !xtermRef.current || !fitAddonRef.current) return;
     requestAnimationFrame(() => {
       fitAddonRef.current?.fit();
       xtermRef.current?.focus();
     });
-  }, [visible]);
+  }, [visible, hasOutput]);
 
   // Live-update terminal options when appearance changes
   useEffect(() => {

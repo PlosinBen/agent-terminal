@@ -90,6 +90,19 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
     }
   });
 
+  // Force scroll to bottom on initial message load (e.g. after agent connection with history)
+  const prevMsgCountRef = useRef(0);
+  useEffect(() => {
+    if (prevMsgCountRef.current === 0 && messages.length > 0) {
+      // Use instant scroll + slight delay to ensure DOM has rendered
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+        isAtBottomRef.current = true;
+      });
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
+
   // IntersectionObserver for lazy loading older history
   useEffect(() => {
     if (!hasMoreHistory || !sentinelRef.current || !listRef.current) return;
