@@ -113,7 +113,13 @@ app.whenReady().then(async () => {
 });
 
 function setupAutoUpdater() {
-  import('electron-updater').then(({ autoUpdater }) => {
+  import('electron-updater').then((mod) => {
+    const eu = mod.default ?? mod;
+    const autoUpdater = eu.autoUpdater ?? eu;
+    if (!autoUpdater?.on) {
+      console.error('[updater] autoUpdater not usable');
+      return;
+    }
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
