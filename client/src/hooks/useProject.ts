@@ -9,7 +9,7 @@ export function useProject(
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusInfo>({
-    segments: [],
+    usage: { costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] },
     agentStatus: 'idle',
     gitBranch: '-',
   });
@@ -74,7 +74,7 @@ export function useProject(
 
         case 'status:update':
           setStatus({
-            segments: msg.segments,
+            usage: msg.usage,
             agentStatus: msg.agentStatus,
             gitBranch: msg.gitBranch,
           });

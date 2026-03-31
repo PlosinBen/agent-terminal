@@ -11,7 +11,7 @@ vi.mock('../backend/claude/backend.js', () => ({
     stop: vi.fn(),
     setPermissionHandler: vi.fn(),
     setPermissionMode: vi.fn().mockResolvedValue(undefined),
-    getStatusSegments: vi.fn().mockReturnValue([]),
+    getRawUsage: vi.fn().mockReturnValue({ costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] }),
     isInitialized: vi.fn().mockReturnValue(true),
     getProviderCommands: vi.fn().mockReturnValue([]),
     getSlashCommands: vi.fn().mockReturnValue([]),

@@ -2,7 +2,7 @@
  * WebSocket protocol — shared message types between main process and renderer.
  */
 
-import type { AgentStatus, StatusSegment, ProviderConfig } from './types.js';
+import type { AgentStatus, RawUsageData, ProviderConfig } from './types.js';
 export type { ProviderConfig } from './types.js';
 
 // ── Renderer → Main ──
@@ -189,7 +189,7 @@ export interface PtyExitMsg {
 export interface StatusUpdateMsg {
   type: 'status:update';
   projectId: string;
-  segments: StatusSegment[];
+  usage: RawUsageData;
   agentStatus: AgentStatus;
   gitBranch: string;
   providerConfig?: ProviderConfig;

@@ -61,7 +61,7 @@ export function broadcastStatus(
   wsServer.broadcast({
     type: 'status:update',
     projectId,
-    segments: session.backend.getStatusSegments(),
+    usage: session.backend.getRawUsage(),
     agentStatus,
     gitBranch: getGitBranch(session.project.cwd),
     providerConfig,

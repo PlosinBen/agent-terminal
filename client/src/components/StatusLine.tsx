@@ -2,6 +2,7 @@ import type { StatusInfo, ProviderConfig } from '../types/message';
 import type { ProjectInfo } from '../types/project';
 import { PERMISSION_MODE_LABELS } from '@shared/types';
 import { getStatusDisplay } from '../utils/statusDisplay';
+import { computeUsageSegments } from '../utils/usageSegments';
 import './StatusLine.css';
 
 interface Props {
@@ -95,8 +96,8 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
         </>
       )}
 
-      {/* Server-provided usage segments */}
-      {status.segments.map((seg, i) => (
+      {/* Client-computed usage segments */}
+      {computeUsageSegments(status.usage).map((seg, i) => (
         <span key={i} className="status-segment">
           <span className="status-sep">|</span>
           {seg.label && <span className="status-seg-label">{seg.label}: </span>}

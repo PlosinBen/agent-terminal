@@ -12,6 +12,23 @@ export interface StatusSegment {
   color?: string;
 }
 
+export interface RateLimitData {
+  type: string;
+  status: string;
+  utilization?: number;
+  resetsAt?: number;
+}
+
+export interface RawUsageData {
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  contextUsedTokens: number;
+  contextWindow: number;
+  numTurns: number;
+  rateLimits: RateLimitData[];
+}
+
 // ── Provider ──
 
 export interface ProviderConfig {

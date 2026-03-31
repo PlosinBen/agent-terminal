@@ -1,5 +1,5 @@
 import * as pty from 'node-pty';
-import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, RawUsageData, CommandInfo, ProviderCommandResult } from '../types.js';
 
 export class GeminiBackend implements AgentBackend {
   private ptyProcess: pty.IPty | null = null;
@@ -66,8 +66,16 @@ export class GeminiBackend implements AgentBackend {
     }
   }
 
-  getStatusSegments(): StatusSegment[] {
-    return [{ value: 'gemini' }];
+  getRawUsage(): RawUsageData {
+    return {
+      costUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      contextUsedTokens: 0,
+      contextWindow: 0,
+      numTurns: 1,
+      rateLimits: [],
+    };
   }
 
   isInitialized(): boolean {

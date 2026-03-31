@@ -27,7 +27,7 @@ export interface PerProjectState {
 }
 
 const DEFAULT_STATUS: StatusInfo = {
-  segments: [],
+  usage: { costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] },
   agentStatus: 'idle',
   gitBranch: '-',
 };
@@ -513,7 +513,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             }
             updated = {
               ...ps,
-              status: { segments: msg.segments, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
+              status: { usage: msg.usage, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
               providerConfig: config,
             };
             setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);

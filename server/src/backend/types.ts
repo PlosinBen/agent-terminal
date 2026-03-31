@@ -1,5 +1,5 @@
-import type { StatusSegment } from '../shared/types.js';
-export type { StatusSegment } from '../shared/types.js';
+import type { RawUsageData } from '../shared/types.js';
+export type { RawUsageData } from '../shared/types.js';
 
 export interface AgentMessage {
   type: 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'system' | 'result';
@@ -47,7 +47,7 @@ export interface AgentBackend {
   stop(): void;
   setPermissionHandler(handler: PermissionHandler): void;
   setPermissionMode(mode: string): Promise<void>;
-  getStatusSegments(): StatusSegment[];
+  getRawUsage(): RawUsageData;
   isInitialized(): boolean;
   getProviderCommands(): CommandInfo[];
   getSlashCommands(): CommandInfo[];

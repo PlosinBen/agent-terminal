@@ -1,6 +1,6 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, PermissionMode, Query } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, RawUsageData, CommandInfo, ProviderCommandResult } from '../types.js';
 import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { UsageTracker } from './usage-tracker.js';
 import { logger } from '../../core/logger.js';
@@ -372,8 +372,8 @@ export class ClaudeBackend implements AgentBackend {
     return cache?.models[0]?.value ?? 'default';
   }
 
-  getStatusSegments(): StatusSegment[] {
-    return this.usage.getStatusSegments();
+  getRawUsage(): RawUsageData {
+    return this.usage.getRawUsage();
   }
 
   async setPermissionMode(mode: string): Promise<void> {

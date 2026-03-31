@@ -1,4 +1,4 @@
-import type { AgentStatus, StatusSegment } from '@shared/types';
+import type { AgentStatus, RawUsageData } from '@shared/types';
 
 export type { ProviderConfig } from '@shared/types';
 
@@ -16,7 +16,7 @@ export interface Message {
 }
 
 export interface StatusInfo {
-  segments: StatusSegment[];
+  usage: RawUsageData;
   agentStatus: AgentStatus;
   gitBranch: string;
 }
