@@ -298,7 +298,7 @@ export function App() {
 
   const loading = activeState?.loading ?? false;
   const messages = activeState?.messages ?? [];
-  const status = activeState?.status ?? { segments: [], agentStatus: 'idle' as const, gitBranch: '-' };
+  const status = activeState?.status ?? { usage: { costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] }, agentStatus: 'idle' as const, gitBranch: '-' };
   const permissionReq = activeState?.permissionReq ?? null;
   const providerConfig = activeState?.providerConfig ?? null;
   const tasks = activeState?.tasks ?? [];

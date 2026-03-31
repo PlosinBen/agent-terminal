@@ -83,6 +83,9 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
     return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Track whether initial scroll has been performed
+  const initialScrollDone = useRef(false);
+
   // Auto-scroll to bottom when new content arrives, only if already at bottom
   useEffect(() => {
     if (isAtBottomRef.current) {
@@ -91,16 +94,18 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
   });
 
   // Force scroll to bottom on initial message load (e.g. after agent connection with history)
-  const prevMsgCountRef = useRef(0);
   useEffect(() => {
-    if (prevMsgCountRef.current === 0 && messages.length > 0) {
-      // Use instant scroll + slight delay to ensure DOM has rendered
-      requestAnimationFrame(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    if (!initialScrollDone.current && messages.length > 0) {
+      initialScrollDone.current = true;
+      // Double rAF to ensure DOM layout is fully complete
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const el = listRef.current;
+        if (el) {
+          el.scrollTop = el.scrollHeight;
+        }
         isAtBottomRef.current = true;
-      });
+      }));
     }
-    prevMsgCountRef.current = messages.length;
   }, [messages.length]);
 
   // IntersectionObserver for lazy loading older history

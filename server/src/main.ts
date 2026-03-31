@@ -88,10 +88,10 @@ function createWindow(serverPort: number) {
 app.whenReady().then(async () => {
   registerIpcHandlers();
 
-  let port = 9100; // default
+  let port = parseInt(process.env.AGENT_TERMINAL_PORT || '9100', 10);
   if (VITE_DEV_SERVER_URL) {
     // Dev mode: server already running externally (tsx watch)
-    console.log('[electron] Dev mode — using external server on port 9100');
+    console.log(`[electron] Dev mode — using external server on port ${port}`);
   } else {
     // Production: spawn standalone server as child process
     port = await spawnServer();

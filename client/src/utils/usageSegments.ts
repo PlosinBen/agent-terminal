@@ -4,7 +4,8 @@
  */
 import type { RawUsageData, StatusSegment } from '@shared/types';
 
-export function computeUsageSegments(usage: RawUsageData): StatusSegment[] {
+export function computeUsageSegments(usage: RawUsageData | undefined | null): StatusSegment[] {
+  if (!usage) return [];
   const tokens = `${(usage.inputTokens / 1000).toFixed(0)}k+${(usage.outputTokens / 1000).toFixed(0)}k`;
 
   // Estimate per-turn context by dividing cumulative tokens by number of turns

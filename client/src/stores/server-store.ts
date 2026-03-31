@@ -6,7 +6,7 @@ import { ServiceEvent } from '../service/types';
 import type { ConnectionChangedPayload } from '../service/types';
 
 export const DEFAULT_SERVER_HOST = typeof window !== 'undefined' && (window as any).electronAPI
-  ? 'localhost:9100'
+  ? `localhost:${import.meta.env.VITE_SERVER_PORT || 9100}`
   : typeof location !== 'undefined' ? location.host : 'localhost:9100';
 
 interface ServerState {
