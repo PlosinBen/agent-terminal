@@ -19,6 +19,8 @@ import {
 } from '../settings';
 import './SettingsPanel.css';
 
+declare const __APP_VERSION__: string;
+
 // ── Keybinding labels & categories ──
 
 const ACTION_LABELS: Record<Action, string> = {
@@ -175,6 +177,7 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <span>Settings</span>
+          <span className="settings-version">v{__APP_VERSION__}</span>
           <button className="settings-close-btn" onClick={onClose}>&times;</button>
         </div>
         <div className="settings-tabs">
@@ -275,8 +278,8 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
               <div className="settings-section">
                 <div className="settings-section-title">Model Aliases</div>
                 <div className="settings-section-desc">
-                  Expand the model picker with additional Claude Code aliases.
-                  These are passed directly to the SDK and may depend on your account tier.
+                  Expand the model picker with additional aliases.
+                  These options only apply to Claude Code backend and are passed directly to the SDK.
                 </div>
               </div>
 

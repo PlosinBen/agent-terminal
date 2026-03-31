@@ -73,7 +73,7 @@ body {
 }
 
 .tab-bar-project-name {
-  padding: 6px 12px;
+  padding: 10px 12px 8px;
   border-bottom: 2px solid transparent;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -91,7 +91,7 @@ body {
 
 .tab-btn {
   position: relative;
-  padding: 6px 16px;
+  padding: 10px 12px 8px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;

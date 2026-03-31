@@ -13,7 +13,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   width: 500px;
-  max-height: 70vh;
+  height: 70vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -29,6 +29,14 @@
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.settings-version {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin-left: 6px;
+  margin-right: auto;
 }
 
 .settings-close-btn {
