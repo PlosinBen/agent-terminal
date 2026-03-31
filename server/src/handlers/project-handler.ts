@@ -5,6 +5,7 @@ import { ClaudeBackend } from '../backend/claude/backend.js';
 import { createProject } from '../core/workspace.js';
 import { TaskTracker } from '../core/task.js';
 import { watchGitHead, broadcastStatus } from './git-watcher.js';
+import { logger } from '../core/logger.js';
 
 export function handleProjectCreate(
   msg: { id: string; cwd: string; requestId: string; sessionId?: string },
@@ -55,7 +56,9 @@ export function handleProjectCreate(
 
   // Warm-up: initialize SDK to get provider config (models, commands) early
   // First status:update will be sent via backend.onInit() callback above
-  backend.warmup(project.cwd).catch(() => {});
+  backend.warmup(project.cwd).catch((err) => {
+    logger.error(`[warmup] Failed for project ${project.id}: ${err instanceof Error ? err.message : String(err)}`);
+  });
 }
 
 export function handleProjectList(

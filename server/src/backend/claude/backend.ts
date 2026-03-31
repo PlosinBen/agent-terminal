@@ -3,6 +3,27 @@ import type { SDKMessage, SDKResultSuccess, SDKResultError, CanUseTool, Permissi
 import type { AgentBackend, AgentMessage, PermissionHandler, StatusSegment, CommandInfo, ProviderCommandResult } from '../types.js';
 import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { UsageTracker } from './usage-tracker.js';
+import { logger } from '../../core/logger.js';
+import { execFileSync } from 'child_process';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+
+function findClaudeBinary(): string | undefined {
+  // Check common locations for the native binary
+  const candidates = [
+    path.join(os.homedir(), '.local', 'bin', 'claude'),
+    '/usr/local/bin/claude',
+    '/opt/homebrew/bin/claude',
+  ];
+  for (const p of candidates) {
+    try { if (fs.statSync(p).isFile()) return p; } catch {}
+  }
+  // Fallback: which
+  try {
+    return execFileSync('which', ['claude'], { encoding: 'utf8', timeout: 3000 }).trim() || undefined;
+  } catch { return undefined; }
+}
 
 function dataUrlToContentBlock(dataUrl: string): { type: 'image'; source: { type: 'base64'; media_type: string; data: string } } | null {
   const match = dataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
@@ -24,9 +45,16 @@ export class ClaudeBackend implements AgentBackend {
   private initialized = false;
   private onInitCallback: (() => void) | null = null;
   private abortController: AbortController | null = null;
+  private claudeBinaryPath: string | undefined;
 
   constructor(opts?: { sessionId?: string }) {
     if (opts?.sessionId) this.sessionId = opts.sessionId;
+    this.claudeBinaryPath = findClaudeBinary();
+    if (this.claudeBinaryPath) {
+      logger.info(`[claude] Found native binary: ${this.claudeBinaryPath}`);
+    } else {
+      logger.warn('[claude] Native binary not found, SDK will use node fallback');
+    }
   }
 
   isInitialized(): boolean {
@@ -84,6 +112,8 @@ export class ClaudeBackend implements AgentBackend {
       return;
     }
 
+    logger.info(`[warmup] starting, cwd=${cwd}`);
+
     const abortController = new AbortController();
     const generator = sdkQuery({
       prompt: ' ',
@@ -91,12 +121,16 @@ export class ClaudeBackend implements AgentBackend {
         cwd,
         permissionMode: 'plan' as PermissionMode,
         abortController,
+        ...(this.claudeBinaryPath ? { pathToClaudeCodeExecutable: this.claudeBinaryPath } : {}),
       },
     });
+
+    logger.info('[warmup] sdkQuery created, iterating messages...');
 
     try {
       for await (const message of generator) {
         const msg = message as SDKMessage;
+        logger.info(`[warmup] received message: type=${msg.type}, subtype=${'subtype' in msg ? (msg as Record<string, unknown>).subtype : 'n/a'}`);
         if (msg.type === 'system') {
           const sysMsg = msg as Record<string, unknown>;
           if (sysMsg.subtype === 'init' && !this.initialized) {
@@ -111,14 +145,19 @@ export class ClaudeBackend implements AgentBackend {
               permissionModes: ['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk'],
               effortLevels: ['low', 'medium', 'high', 'max'],
             });
+            logger.info(`[warmup] initialized, ${models.length} models, ${commands.length} commands`);
             this.onInitCallback?.();
             abortController.abort();
             break;
           }
         }
       }
-    } catch {
-      // Abort throws — expected
+    } catch (err) {
+      const errObj = err as Record<string, unknown>;
+      logger.error(`[warmup] generator ended: ${err instanceof Error ? err.message : String(err)}`);
+      if (errObj.stderr) logger.error(`[warmup] stderr: ${errObj.stderr}`);
+      if (errObj.stdout) logger.error(`[warmup] stdout: ${errObj.stdout}`);
+      if (err instanceof Error && err.stack) logger.error(`[warmup] stack: ${err.stack}`);
     }
   }
 
@@ -172,6 +211,7 @@ export class ClaudeBackend implements AgentBackend {
         effort: (opts.effort ?? 'high') as 'low' | 'medium' | 'high' | 'max',
         abortController: this.abortController,
         ...(this.sessionId ? { resume: this.sessionId } : {}),
+        ...(this.claudeBinaryPath ? { pathToClaudeCodeExecutable: this.claudeBinaryPath } : {}),
       },
     });
   }

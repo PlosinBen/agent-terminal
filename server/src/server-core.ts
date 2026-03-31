@@ -13,10 +13,17 @@ export function fixMacOsPath(): void {
       timeout: 3000,
       encoding: 'utf8',
     }).trim();
-    if (rawPath) process.env.PATH = rawPath;
-  } catch {
-    const extra = ['/opt/homebrew/bin', '/usr/local/bin'];
+    if (rawPath) {
+      process.env.PATH = rawPath;
+      logger.info(`[fixPath] shell PATH resolved (${rawPath.split(':').length} entries)`);
+    } else {
+      throw new Error('empty PATH from shell');
+    }
+  } catch (err) {
+    const home = process.env.HOME || '';
+    const extra = [`${home}/.local/bin`, '/opt/homebrew/bin', '/usr/local/bin'];
     process.env.PATH = `${extra.join(':')}:${process.env.PATH || ''}`;
+    logger.warn(`[fixPath] shell login failed, using fallback PATH: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

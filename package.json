@@ -38,7 +38,8 @@
       "shared/**/*"
     ],
     "asarUnpack": [
-      "node_modules/node-pty/**"
+      "node_modules/node-pty/**",
+      "node_modules/@anthropic-ai/claude-agent-sdk/**"
     ],
     "mac": {
       "target": [
@@ -59,6 +60,12 @@
       "owner": "PlosinBen",
       "repo": "agent-terminal"
     }
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.83",
+    "electron-updater": "^6.8.3",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "electron": "^35.0.0",
