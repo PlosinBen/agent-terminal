@@ -54,11 +54,12 @@ interface Props {
   onSettingsChanged: () => void;
 }
 
-type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'history';
+type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'models' | 'history';
 const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: 'keybindings', label: 'Keybindings' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'display', label: 'Display' },
+  { id: 'models', label: 'Models' },
   { id: 'history', label: 'History' },
 ];
 
@@ -148,6 +149,15 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
     setStDraft(prev => ({
       ...prev,
       display: { ...prev.display, [key]: value },
+    }));
+  }, []);
+
+  const updateModels = useCallback(<K extends keyof AppSettings['models']>(
+    key: K, value: AppSettings['models'][K],
+  ) => {
+    setStDraft(prev => ({
+      ...prev,
+      models: { ...prev.models, [key]: value },
     }));
   }, []);
 
@@ -256,6 +266,58 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
                   </select>
                 </div>
               ))}
+            </>
+          )}
+
+          {/* ── Models ── */}
+          {activeTab === 'models' && (
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">Model Aliases</div>
+                <div className="settings-section-desc">
+                  Expand the model picker with additional Claude Code aliases.
+                  These are passed directly to the SDK and may depend on your account tier.
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <span className="settings-row-label">
+                  Show <code>opus</code> alias
+                  <span className="settings-row-hint">Explicit Opus model (vs "default")</span>
+                </span>
+                <button
+                  className={`settings-toggle${stDraft.models.showOpus ? ' on' : ''}`}
+                  onClick={() => updateModels('showOpus', !stDraft.models.showOpus)}
+                >
+                  <span className="settings-toggle-knob" />
+                </button>
+              </div>
+
+              <div className="settings-row">
+                <span className="settings-row-label">
+                  Show <code>[1m]</code> context variants
+                  <span className="settings-row-hint">opus[1m], sonnet[1m] — 1M token context window</span>
+                </span>
+                <button
+                  className={`settings-toggle${stDraft.models.showExtendedContext ? ' on' : ''}`}
+                  onClick={() => updateModels('showExtendedContext', !stDraft.models.showExtendedContext)}
+                >
+                  <span className="settings-toggle-knob" />
+                </button>
+              </div>
+
+              <div className="settings-row">
+                <span className="settings-row-label">
+                  Show <code>opusplan</code>
+                  <span className="settings-row-hint">Opus for planning → Sonnet for execution</span>
+                </span>
+                <button
+                  className={`settings-toggle${stDraft.models.showOpusPlan ? ' on' : ''}`}
+                  onClick={() => updateModels('showOpusPlan', !stDraft.models.showOpusPlan)}
+                >
+                  <span className="settings-toggle-knob" />
+                </button>
+              </div>
             </>
           )}
 

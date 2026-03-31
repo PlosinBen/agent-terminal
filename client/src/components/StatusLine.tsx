@@ -41,7 +41,7 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
   };
 
   const isInteractive = !!(providerConfig && onCommand);
-  const currentModel = project?.model ?? 'opus';
+  const currentModel = project?.model ?? providerConfig?.models[0]?.value ?? 'default';
   const currentMode = project?.permissionMode ?? 'default';
   const currentEffort = project?.effort ?? 'high';
   const modeLabel = PERMISSION_MODE_LABELS[currentMode] ?? currentMode;

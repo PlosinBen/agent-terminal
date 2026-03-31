@@ -152,6 +152,31 @@
 
 .settings-row-label {
   color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-row-label code {
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-accent, #61afef);
+}
+
+.settings-row-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: normal;
+}
+
+.settings-section-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: -4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 /* Number stepper */

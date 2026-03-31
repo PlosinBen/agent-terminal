@@ -146,6 +146,7 @@ export class ClaudeBackend implements AgentBackend {
               effortLevels: ['low', 'medium', 'high', 'max'],
             });
             logger.info(`[warmup] initialized, ${models.length} models, ${commands.length} commands`);
+            logger.info(`[warmup] models: ${JSON.stringify(models.map(m => ({ value: m.value, displayName: m.displayName, description: m.description })))}`);
             this.onInitCallback?.();
             abortController.abort();
             break;
@@ -206,7 +207,7 @@ export class ClaudeBackend implements AgentBackend {
       options: {
         cwd: opts.cwd ?? process.cwd(),
         canUseTool,
-        model: opts.model ?? 'opus',
+        model: opts.model ?? this.getDefaultModel(),
         permissionMode: (opts.permissionMode ?? 'default') as PermissionMode,
         effort: (opts.effort ?? 'high') as 'low' | 'medium' | 'high' | 'max',
         abortController: this.abortController,
@@ -364,6 +365,11 @@ export class ClaudeBackend implements AgentBackend {
       }
     }
     return false;
+  }
+
+  private getDefaultModel(): string {
+    const cache = getProviderCache('claude');
+    return cache?.models[0]?.value ?? 'default';
   }
 
   getStatusSegments(): StatusSegment[] {

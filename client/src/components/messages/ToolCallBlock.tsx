@@ -159,14 +159,15 @@ function GrepContent({ input, cwd }: { input: Record<string, unknown>; cwd?: str
 }
 
 function parseTaskResult(raw: string): string {
+  // Strip trailing SDK metadata first so JSON.parse can succeed
+  const cleaned = raw.replace(/\nagentId:[\s\S]*$/, '').trim();
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
       return parsed
         .filter((block: Record<string, unknown>) => {
           if (block.type !== 'text') return false;
           const text = String(block.text || '');
-          // Filter out SDK metadata (agentId, usage)
           if (text.startsWith('agentId:') || text.startsWith('<usage>')) return false;
           return true;
         })
@@ -174,9 +175,9 @@ function parseTaskResult(raw: string): string {
         .join('\n');
     }
   } catch {
-    // Not JSON — return as-is but strip trailing metadata
+    // Not JSON — return cleaned text as-is
   }
-  return raw.replace(/\nagentId:[\s\S]*$/, '').trim();
+  return cleaned;
 }
 
 function TaskContent({ input, result }: { input: Record<string, unknown>; result?: string }) {

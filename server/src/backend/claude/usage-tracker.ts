@@ -1,5 +1,6 @@
 import type { SDKResultSuccess } from '@anthropic-ai/claude-agent-sdk';
 import type { StatusSegment } from '../types.js';
+import { logger } from '../../core/logger.js';
 
 
 interface RateLimitInfo {
@@ -18,18 +19,44 @@ export class UsageTracker {
 
   update(result: SDKResultSuccess): void {
     this.costUsd += result.total_cost_usd ?? 0;
-    this.inputTokens = result.usage.input_tokens;
-    this.outputTokens = result.usage.output_tokens;
+
+    // Only update tokens when there's actual usage (avoid /context compact resetting to 0)
+    if (result.usage.input_tokens > 0 || result.usage.output_tokens > 0) {
+      this.inputTokens = result.usage.input_tokens;
+      this.outputTokens = result.usage.output_tokens;
+    }
 
     if (result.modelUsage) {
-      let totalUsed = 0;
-      let maxWindow = 0;
-      for (const mu of Object.values(result.modelUsage)) {
-        totalUsed += mu.inputTokens + mu.cacheReadInputTokens + mu.cacheCreationInputTokens;
-        if (mu.contextWindow > maxWindow) maxWindow = mu.contextWindow;
+      const numTurns = Math.max(1, result.num_turns ?? 1);
+
+      // Log raw modelUsage for debugging
+      for (const [model, mu] of Object.entries(result.modelUsage)) {
+        const cumulative = mu.inputTokens + mu.cacheReadInputTokens + mu.cacheCreationInputTokens;
+        logger.info(`[usage] model=${model} numTurns=${numTurns} input=${mu.inputTokens} cacheRead=${mu.cacheReadInputTokens} cacheCreation=${mu.cacheCreationInputTokens} cumulative=${cumulative} window=${mu.contextWindow}`);
       }
-      this.contextUsedTokens = totalUsed;
-      this.contextWindow = maxWindow;
+
+      // modelUsage tokens are CUMULATIVE across all internal API calls in this query.
+      // Each internal turn sends roughly the full context, so:
+      //   cumulative ≈ numTurns × avgContextSize
+      //   avgContextSize ≈ cumulative / numTurns
+      //
+      // This is a reasonable approximation of current context window occupancy.
+      // Pick the main model (largest context window).
+      let bestUsed = 0;
+      let bestWindow = 0;
+      for (const mu of Object.values(result.modelUsage)) {
+        const cumulative = mu.inputTokens + mu.cacheReadInputTokens + mu.cacheCreationInputTokens;
+        const estimatedContext = Math.round(cumulative / numTurns);
+
+        if (mu.contextWindow > bestWindow || (mu.contextWindow === bestWindow && estimatedContext > bestUsed)) {
+          bestUsed = estimatedContext;
+          bestWindow = mu.contextWindow;
+        }
+      }
+      this.contextUsedTokens = bestUsed;
+      this.contextWindow = bestWindow;
+
+      logger.info(`[usage] ctx estimate: ${bestUsed}/${bestWindow} = ${bestWindow > 0 ? Math.round(bestUsed / bestWindow * 100) : 0}%`);
     }
   }
 

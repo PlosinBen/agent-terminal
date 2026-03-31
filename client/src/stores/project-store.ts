@@ -8,6 +8,7 @@ import type { ConnectionChangedPayload } from '../service/types';
 import { loadSavedProjects, saveSavedProjects, generateProjectId } from '../projects-storage';
 import { loadSettings } from '../settings';
 import { saveMessages, loadRecentMessages, loadMoreMessages, hasMoreMessages, clearProject } from '../storage/chat-history';
+import { expandModels } from '../utils/modelAdapter';
 import { DEFAULT_SERVER_HOST } from './server-store';
 
 // ── Per-project runtime state (was in useProjects) ──
@@ -503,14 +504,21 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: 'attention' }), 0);
             break;
 
-          case 'status:update':
+          case 'status:update': {
+            let config = msg.providerConfig ?? ps.providerConfig;
+            if (config && msg.providerConfig) {
+              // Expand model list with user-configured aliases (opus, [1m], opusplan)
+              const { models: modelSettings } = loadSettings();
+              config = { ...config, models: expandModels(config.models, modelSettings) };
+            }
             updated = {
               ...ps,
               status: { segments: msg.segments, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
-              providerConfig: msg.providerConfig ?? ps.providerConfig,
+              providerConfig: config,
             };
             setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
             break;
+          }
 
           case 'command:result':
             updated = {

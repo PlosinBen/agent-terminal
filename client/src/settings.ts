@@ -22,6 +22,14 @@ export interface AppSettings {
     TodoWrite: DisplayMode;
     other: DisplayMode;
   };
+  models: {
+    /** Show extended context (1M) variants for opus/sonnet */
+    showExtendedContext: boolean;
+    /** Show explicit "opus" alias (when SDK only provides "default") */
+    showOpus: boolean;
+    /** Show "opusplan" (opus for planning, sonnet for execution) */
+    showOpusPlan: boolean;
+  };
   history: {
     rotateDays: number;
     loadLimitRounds: number;
@@ -59,6 +67,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
     TodoWrite: 'collapsed',
     other: 'collapsed',
   },
+  models: {
+    showExtendedContext: true,
+    showOpus: true,
+    showOpusPlan: false,
+  },
   history: {
     rotateDays: 30,
     loadLimitRounds: 10,
@@ -75,6 +88,7 @@ export function loadSettings(): AppSettings {
       return {
         appearance: { ...DEFAULT_SETTINGS.appearance, ...parsed.appearance },
         display: { ...DEFAULT_SETTINGS.display, ...parsed.display },
+        models: { ...DEFAULT_SETTINGS.models, ...parsed.models },
         history: { ...DEFAULT_SETTINGS.history, ...parsed.history },
       };
     }
