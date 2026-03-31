@@ -8,14 +8,15 @@ export function computeUsageSegments(usage: RawUsageData | undefined | null): St
   if (!usage) return [];
   const tokens = `${(usage.inputTokens / 1000).toFixed(0)}k+${(usage.outputTokens / 1000).toFixed(0)}k`;
 
-  // Estimate per-turn context by dividing cumulative tokens by number of turns
-  const numTurns = Math.max(1, usage.numTurns);
-  const estimatedContext = usage.contextUsedTokens / numTurns;
-
+  // Context %: same approach as better-agent-terminal reference.
+  // contextUsedTokens (cumulative input incl. cache) + outputTokens as a ratio of contextWindow.
+  // This is a monotonically increasing proxy for context consumption — not exact current
+  // occupancy, but a useful indicator of how much of the window has been used.
+  const ctxUsed = usage.contextUsedTokens + usage.outputTokens;
+  const ctxRatio = usage.contextWindow > 0 ? ctxUsed / usage.contextWindow : 0;
   const ctxPct = usage.contextWindow > 0
-    ? `${Math.round((estimatedContext / usage.contextWindow) * 100)}%`
+    ? `${Math.round(ctxRatio * 100)}%`
     : null;
-  const ctxRatio = usage.contextWindow > 0 ? estimatedContext / usage.contextWindow : 0;
   const ctxColor = usage.contextWindow > 0
     ? (ctxRatio >= 0.8 ? '#e06c75' : ctxRatio >= 0.5 ? '#e5c07b' : undefined)
     : undefined;
