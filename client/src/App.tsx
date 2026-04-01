@@ -163,7 +163,8 @@ export function App() {
     if (!isConnected()) return;
     const currentIdx = TABS.indexOf(activeTab);
     const next = TABS[(currentIdx + direction + TABS.length) % TABS.length];
-    if (next === 'agent' && activeProjectId) clearAgentNotify(activeProjectId);
+    const pid = useProjectStore.getState().activeProjectId;
+    if (next === 'agent' && pid) clearAgentNotify(pid);
     setActiveTab(next);
     focusActiveTab(next);
   };
