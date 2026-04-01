@@ -79,6 +79,27 @@ describe('Full-flow integration', () => {
     return ws;
   }
 
+  it('sends provider:list on new connection', async () => {
+    // Register message listener BEFORE connection opens to catch the initial message
+    const received: any[] = [];
+    const ws = new WebSocket(`ws://localhost:${port}`);
+    ws.on('message', (raw) => {
+      received.push(JSON.parse(raw.toString()));
+    });
+    clients.push(ws);
+
+    await new Promise<void>((resolve) => ws.on('open', resolve));
+
+    // Wait for the initial provider:list message
+    await vi.waitFor(() => {
+      expect(received.some(m => m.type === 'provider:list')).toBe(true);
+    });
+
+    const providerList = received.find(m => m.type === 'provider:list');
+    expect(Array.isArray(providerList.providers)).toBe(true);
+    expect(providerList.providers).toContainEqual({ name: 'claude', displayName: 'Claude' });
+  });
+
   it('project create and list lifecycle', async () => {
     const ws = await connect();
 
@@ -92,6 +113,8 @@ describe('Full-flow integration', () => {
 
     expect(created.project.id).toBe('p1');
     expect(created.project.name).toBe('test-project');
+    expect(created.project.provider).toBe('claude');
+    expect(created.project.providerDisplayName).toBe('Claude');
 
     // List projects
     const listed = await sendAndWait(ws, {
@@ -101,6 +124,7 @@ describe('Full-flow integration', () => {
 
     expect(listed.projects).toHaveLength(1);
     expect(listed.projects[0].id).toBe('p1');
+    expect(listed.projects[0].provider).toBe('claude');
   });
 
   it('agent query streams messages and sends done', async () => {

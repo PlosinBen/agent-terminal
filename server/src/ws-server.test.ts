@@ -126,4 +126,41 @@ describe('WsServer', () => {
     expect(server.getPort()).toBe(port);
     expect(port).toBeGreaterThan(0);
   });
+
+  it('calls onConnect handler for each new client', async () => {
+    const connectHandler = vi.fn();
+    server.onConnect(connectHandler);
+
+    await connect();
+    await vi.waitFor(() => expect(connectHandler).toHaveBeenCalledTimes(1));
+
+    await connect();
+    await vi.waitFor(() => expect(connectHandler).toHaveBeenCalledTimes(2));
+
+    // Handler receives a send function
+    expect(typeof connectHandler.mock.calls[0][0]).toBe('function');
+  });
+
+  it('onConnect sends initial message to newly connected client', async () => {
+    server.onConnect((send) => {
+      send({ type: 'provider:list', providers: [{ name: 'test', displayName: 'Test' }] } as any);
+    });
+
+    // Register message listener BEFORE connection opens to catch the initial message
+    const received: any[] = [];
+    const ws = new WebSocket(`ws://localhost:${port}`);
+    ws.on('message', (raw) => {
+      received.push(JSON.parse(raw.toString()));
+    });
+    clients.push(ws);
+
+    await new Promise<void>((resolve) => ws.on('open', resolve));
+
+    // Wait for the initial message to arrive
+    await vi.waitFor(() => {
+      expect(received.some(m => m.type === 'provider:list')).toBe(true);
+    });
+
+    expect(received[0].providers).toEqual([{ name: 'test', displayName: 'Test' }]);
+  });
 });

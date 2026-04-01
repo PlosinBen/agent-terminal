@@ -81,6 +81,36 @@ describe('handleProjectCreate', () => {
     expect(result.project.provider).toBe('claude');
     expect(result.project.providerDisplayName).toBe('Claude');
   });
+
+  it('defaults to claude when no provider is specified', () => {
+    const sessions = new Map<string, ProjectSession>();
+    const replies: DownstreamMessage[] = [];
+
+    handleProjectCreate(
+      { id: 'p4', cwd: '/tmp/test', requestId: 'r4' },
+      (m) => replies.push(m),
+      sessions,
+      null,
+    );
+
+    const session = sessions.get('p4')!;
+    expect(session.project.provider).toBe('claude');
+  });
+
+  it('uses specified provider when provided', () => {
+    const sessions = new Map<string, ProjectSession>();
+    const replies: DownstreamMessage[] = [];
+
+    handleProjectCreate(
+      { id: 'p5', cwd: '/tmp/test', requestId: 'r5', provider: 'claude' },
+      (m) => replies.push(m),
+      sessions,
+      null,
+    );
+
+    const result = replies[0] as any;
+    expect(result.project.provider).toBe('claude');
+  });
 });
 
 describe('handleProjectList', () => {
