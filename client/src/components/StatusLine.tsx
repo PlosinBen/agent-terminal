@@ -56,7 +56,7 @@ export function StatusLine({ status, project, providerConfig, providers, onComma
   const modeColor = PERMISSION_MODE_COLORS[currentMode];
 
   return (
-    <div className="status-line">
+    <div className="status-line" data-testid="status-line">
       <span className="status-dot" style={{ color: display.color }}>
         {display.icon}
       </span>
@@ -64,7 +64,7 @@ export function StatusLine({ status, project, providerConfig, providers, onComma
       {providerLabel && (
         <>
           <span className="status-sep">|</span>
-          <span className="status-provider">{providerLabel}</span>
+          <span className="status-provider" data-testid="status-provider-label">{providerLabel}</span>
         </>
       )}
       <span className="status-sep">|</span>

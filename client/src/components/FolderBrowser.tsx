@@ -18,7 +18,7 @@ export function FolderBrowser({
   listRef, onSelectIndex, onNavigate, onGoUp,
 }: Props) {
   return (
-    <div className="fp-browser">
+    <div className="fp-browser" data-testid="folder-browser">
       {loading && <div className="fp-browser-loading-overlay">Loading...</div>}
 
       <div className="fp-browser-header">
@@ -52,6 +52,7 @@ export function FolderBrowser({
             <div
               key={name}
               className={`folder-picker-item${i === selectedIndex ? ' selected' : ''}`}
+              data-testid={`folder-item-${name}`}
               onClick={() => onSelectIndex(i)}
               onDoubleClick={() => onNavigate(currentPath + '/' + name)}
             >

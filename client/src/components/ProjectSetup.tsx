@@ -31,8 +31,8 @@ export function ProjectSetup({ folderPath, providers, onConfirm, onCancel }: Pro
   };
 
   return (
-    <div className="project-setup-overlay" onClick={onCancel}>
-      <div className="project-setup" onClick={e => e.stopPropagation()} onKeyDown={handleKeyDown}>
+    <div className="project-setup-overlay" data-testid="project-setup-overlay" onClick={onCancel}>
+      <div className="project-setup" data-testid="project-setup-dialog" onClick={e => e.stopPropagation()} onKeyDown={handleKeyDown}>
         <div className="project-setup-header">New Project</div>
 
         <div className="project-setup-body">
@@ -43,6 +43,7 @@ export function ProjectSetup({ folderPath, providers, onConfirm, onCancel }: Pro
             <input
               ref={inputRef}
               className="project-setup-input"
+              data-testid="project-name-input"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={defaultName}
@@ -56,6 +57,7 @@ export function ProjectSetup({ folderPath, providers, onConfirm, onCancel }: Pro
                 <button
                   key={p.name}
                   className={'project-setup-provider-btn' + (provider === p.name ? ' active' : '')}
+                  data-testid={`provider-btn-${p.name}`}
                   onClick={() => setProvider(p.name)}
                   type="button"
                 >
@@ -70,9 +72,10 @@ export function ProjectSetup({ folderPath, providers, onConfirm, onCancel }: Pro
         </div>
 
         <div className="project-setup-footer">
-          <button className="project-setup-btn secondary" onClick={onCancel}>Cancel</button>
+          <button className="project-setup-btn secondary" data-testid="project-setup-cancel" onClick={onCancel}>Cancel</button>
           <button
             className="project-setup-btn primary"
+            data-testid="project-setup-create"
             onClick={() => onConfirm(name.trim() || defaultName, provider)}
             disabled={providers.length === 0}
           >

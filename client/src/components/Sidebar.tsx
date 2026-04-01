@@ -26,12 +26,12 @@ export function Sidebar({ visible, onNew, onRevealInFinder, onOpenSettings, newP
   if (!visible) return null;
 
   return (
-    <div className="sidebar">
+    <div className="sidebar" data-testid="sidebar">
       <div className="sidebar-header">
         <span>Projects</span>
         <span className="sidebar-header-actions">
-          <button className="sidebar-icon-btn" onClick={onOpenSettings} tabIndex={-1} title="Settings">&#9881;</button>
-          <button className="sidebar-icon-btn" onClick={onNew} tabIndex={-1} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
+          <button className="sidebar-icon-btn" data-testid="sidebar-settings-btn" onClick={onOpenSettings} tabIndex={-1} title="Settings">&#9881;</button>
+          <button className="sidebar-icon-btn" data-testid="sidebar-new-btn" onClick={onNew} tabIndex={-1} title={newProjectShortcut ? `New Project (${newProjectShortcut})` : 'New Project'}>+</button>
         </span>
       </div>
       <div className="sidebar-list">
@@ -56,6 +56,7 @@ export function Sidebar({ visible, onNew, onRevealInFinder, onOpenSettings, newP
                 setOverIdx(null);
               }}
               onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+              data-testid={`sidebar-project-${p.id}`}
               onClick={() => setActiveProjectId(p.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -73,7 +74,7 @@ export function Sidebar({ visible, onNew, onRevealInFinder, onOpenSettings, newP
                 <span className="sidebar-item-folder" title={p.cwd}>
                   {p.cwd.split('/').pop()}
                   {p.provider && p.provider !== 'claude' && (
-                    <span className="sidebar-item-provider"> ({p.provider})</span>
+                    <span className="sidebar-item-provider" data-testid="sidebar-provider-label"> ({p.provider})</span>
                   )}
                 </span>
               </div>

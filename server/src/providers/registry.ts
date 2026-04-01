@@ -1,19 +1,33 @@
 import type { ProviderDefinition } from './types.js';
 import { provider as claude } from './claude/index.js';
 import { provider as gemini } from './gemini/index.js';
+import { provider as mock } from './mock/index.js';
 import { logger } from '../core/logger.js';
 
-const allProviders: ProviderDefinition[] = [claude, gemini];
+const allProviders: ProviderDefinition[] = [claude, gemini, mock];
 let availableProviders: ProviderDefinition[] = [];
 
 /**
  * Initialize the provider registry.
  * Runs checkAvailable() on each provider and stores the available ones.
  * Should be called once at server startup.
+ *
+ * If AGENT_PROVIDERS env var is set (comma-separated names), only those
+ * providers are considered. This is useful for E2E testing with the mock provider.
+ * Example: AGENT_PROVIDERS=mock
  */
 export async function initRegistry(): Promise<void> {
+  const envFilter = process.env.AGENT_PROVIDERS?.split(',').map(s => s.trim()).filter(Boolean);
   availableProviders = [];
-  for (const p of allProviders) {
+  const candidates = envFilter
+    ? allProviders.filter(p => envFilter.includes(p.name))
+    : allProviders;
+
+  if (envFilter) {
+    logger.info(`[registry] AGENT_PROVIDERS filter: ${envFilter.join(', ')}`);
+  }
+
+  for (const p of candidates) {
     try {
       const ok = await p.checkAvailable();
       if (ok) {

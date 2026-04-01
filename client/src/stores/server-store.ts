@@ -11,8 +11,8 @@ export interface AvailableProvider {
   displayName: string;
 }
 
-export const DEFAULT_SERVER_HOST = typeof window !== 'undefined' && (window as any).electronAPI
-  ? `localhost:${import.meta.env.VITE_SERVER_PORT || 9100}`
+export const DEFAULT_SERVER_HOST = import.meta.env.VITE_SERVER_PORT
+  ? `localhost:${import.meta.env.VITE_SERVER_PORT}`
   : typeof location !== 'undefined' ? location.host : 'localhost:9100';
 
 interface ServerState {

@@ -328,7 +328,7 @@ export function App() {
   }, [activeProjectId, clearAgentNotify, focusActiveTab]);
 
   return (
-    <div className="app-layout">
+    <div className="app-layout" data-testid="app-layout">
       <Sidebar
         visible={sidebarVisible}
         onNew={openFolderPicker}
@@ -338,8 +338,8 @@ export function App() {
       />
       <div className="main-area">
         {activeProject && (
-          <div className="tab-bar">
-            <span className="tab-bar-project-name">{activeProject.name}</span>
+          <div className="tab-bar" data-testid="tab-bar">
+            <span className="tab-bar-project-name" data-testid="tab-bar-project-name">{activeProject.name}</span>
             {(activeProject.connectionStatus === 'connected' || activeProject.connectionStatus === 'reconnecting') && (
               <>
                 <button
@@ -429,7 +429,7 @@ export function App() {
             Click or press Enter to connect to <strong>&nbsp;{activeProject.name}</strong>
           </div>
         ) : (
-          <div className="empty-state">
+          <div className="empty-state" data-testid="empty-state">
             {localConnected ? `Press ${formatBinding(keybindings.newProject)} to open a project` : 'Connecting...'}
           </div>
         )}
