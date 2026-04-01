@@ -4,15 +4,22 @@ import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
 import { logger } from './core/logger.js';
 
 export type MessageHandler = (msg: UpstreamMessage, send: (msg: DownstreamMessage) => void) => void;
+export type ConnectHandler = (send: (msg: DownstreamMessage) => void) => void;
 
 export class WsServer {
   private wss: WebSocketServer | null = null;
   private clients = new Set<WebSocket>();
   private handler: MessageHandler | null = null;
+  private connectHandler: ConnectHandler | null = null;
   private port = 0;
 
   onMessage(handler: MessageHandler) {
     this.handler = handler;
+  }
+
+  /** Register a handler called when a new client connects */
+  onConnect(handler: ConnectHandler) {
+    this.connectHandler = handler;
   }
 
   /** Start a standalone WS server on the given port (used by Electron mode) */
@@ -48,6 +55,14 @@ export class WsServer {
     this.wss.on('connection', (ws) => {
       this.clients.add(ws);
       logger.debug(`WS client connected (total: ${this.clients.size})`);
+
+      // Send initial data to newly connected client
+      const sendToClient = (reply: DownstreamMessage) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(reply));
+        }
+      };
+      this.connectHandler?.(sendToClient);
 
       ws.on('message', (raw) => {
         try {

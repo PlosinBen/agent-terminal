@@ -1,0 +1,134 @@
+.project-setup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.project-setup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.project-setup-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-setup-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.project-setup-path {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-setup-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.project-setup-input {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.project-setup-input:focus {
+  border-color: var(--accent);
+}
+
+.project-setup-providers {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.project-setup-provider-btn {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.project-setup-provider-btn:hover {
+  border-color: var(--text-secondary);
+}
+
+.project-setup-provider-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-bg, rgba(97, 175, 239, 0.1));
+}
+
+.project-setup-no-providers {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.project-setup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.project-setup-btn {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.project-setup-btn.secondary {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.project-setup-btn.secondary:hover {
+  background: var(--bg-primary);
+}
+
+.project-setup-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.project-setup-btn.primary:hover {
+  opacity: 0.9;
+}
+
+.project-setup-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

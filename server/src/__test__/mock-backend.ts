@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { AgentBackend, AgentMessage, PermissionHandler, CommandInfo, ProviderCommandResult, RawUsageData } from '../backend/types.js';
+import type { AgentBackend, AgentMessage, PermissionHandler, CommandInfo, ProviderCommandResult, RawUsageData } from '../providers/types.js';
 
 export interface MockBackend extends AgentBackend {
   warmup: ReturnType<typeof vi.fn>;

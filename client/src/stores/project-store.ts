@@ -75,7 +75,7 @@ interface ProjectStoreState {
 
   // Project list actions
   setActiveProjectId: (id: string | null) => void;
-  createProject: (cwd: string, serverHost: string) => void;
+  createProject: (cwd: string, serverHost: string, provider?: string, name?: string) => void;
   connectProject: (project: ProjectInfo) => Promise<void>;
   closeProject: (id: string) => void;
   reorderProjects: (fromIndex: number, toIndex: number) => void;
@@ -101,7 +101,7 @@ interface ProjectStoreState {
 function persistProjects(projects: ProjectInfo[]) {
   saveSavedProjects(projects.map(p => ({
     id: p.id, name: p.name, cwd: p.cwd, serverHost: p.serverHost,
-    sessionId: p.sessionId, model: p.model,
+    provider: p.provider, sessionId: p.sessionId, model: p.model,
     permissionMode: p.permissionMode, effort: p.effort,
   })));
 }
@@ -112,6 +112,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
   projects: loadSavedProjects().map(p => ({
     ...p,
     serverHost: p.serverHost || DEFAULT_SERVER_HOST,
+    provider: p.provider || 'claude',
     agentStatus: 'idle' as const,
     connectionStatus: 'disconnected' as const,
   })),
@@ -142,7 +143,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
 
   setActiveProjectId: (id) => set({ activeProjectId: id }),
 
-  createProject: (cwd, serverHost) => {
+  createProject: (cwd, serverHost, provider, customName) => {
     const { projects, connectProject: connect } = get();
 
     // Check if project with same cwd + server already exists
@@ -154,9 +155,10 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
     }
 
     const id = generateProjectId();
-    const name = cwd.split('/').pop() ?? 'project';
+    const name = customName || cwd.split('/').pop() || 'project';
     const p: ProjectInfo = {
       id, name, cwd, serverHost,
+      provider: provider ?? 'claude',
       agentStatus: 'idle', connectionStatus: 'disconnected',
     };
 
@@ -183,12 +185,16 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
       ),
     }));
 
-    await service.connectProject(project);
+    const created = await service.connectProject(project);
 
-    // Mark as connected + init per-project state
+    // Mark as connected + init per-project state, update provider from server response
     set(s => ({
       projects: s.projects.map(p =>
-        p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
+        p.id === project.id ? {
+          ...p,
+          connectionStatus: 'connected' as const,
+          ...(created.provider && { provider: created.provider }),
+        } : p
       ),
       projectStates: {
         ...s.projectStates,
@@ -505,29 +511,38 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             break;
 
           case 'status:update': {
-            let config = msg.providerConfig ?? ps.providerConfig;
-            if (config && msg.providerConfig) {
-              // Expand model list with user-configured aliases (opus, [1m], opusplan)
+            // Partial update: only update fields that are provided, preserve existing values
+            let config = ps.providerConfig;
+            if (msg.providerConfig) {
               const { models: modelSettings } = loadSettings();
-              config = { ...config, models: expandModels(config.models, modelSettings) };
+              config = { ...msg.providerConfig, models: expandModels(msg.providerConfig.models, modelSettings) };
             }
+
             // Merge rate limits: keep existing entries, update/add incoming ones by type
             const prevUsage = ps.status.usage;
-            const prevLimits = prevUsage?.rateLimits ?? [];
-            const incomingLimits = msg.usage?.rateLimits ?? [];
-            const mergedMap = new Map(prevLimits.map(rl => [rl.type, rl]));
-            for (const rl of incomingLimits) {
-              mergedMap.set(rl.type, rl);
+            let mergedUsage = prevUsage;
+            if (msg.usage) {
+              const prevLimits = prevUsage?.rateLimits ?? [];
+              const incomingLimits = msg.usage.rateLimits ?? [];
+              const mergedMap = new Map(prevLimits.map(rl => [rl.type, rl]));
+              for (const rl of incomingLimits) {
+                mergedMap.set(rl.type, rl);
+              }
+              mergedUsage = { ...msg.usage, rateLimits: Array.from(mergedMap.values()) };
             }
-            const mergedUsage = msg.usage
-              ? { ...msg.usage, rateLimits: Array.from(mergedMap.values()) }
-              : prevUsage;
+
             updated = {
               ...ps,
-              status: { usage: mergedUsage, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
+              status: {
+                usage: mergedUsage,
+                agentStatus: msg.agentStatus ?? ps.status.agentStatus,
+                gitBranch: msg.gitBranch ?? ps.status.gitBranch,
+              },
               providerConfig: config,
             };
-            setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
+            if (msg.agentStatus) {
+              setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
+            }
             break;
           }
 

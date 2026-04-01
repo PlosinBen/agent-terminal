@@ -1,7 +1,7 @@
 import type { DownstreamMessage } from '../shared/protocol.js';
 import type { WsServer } from '../ws-server.js';
 import type { ProjectSession } from '../session-manager.js';
-import type { PermissionRequest } from '../backend/types.js';
+import type { PermissionRequest } from '../providers/types.js';
 import { executeCommand } from '../core/commands.js';
 import { broadcastStatus } from './git-watcher.js';
 
@@ -32,8 +32,8 @@ export async function handleAgentQuery(
     });
   });
 
-  // Broadcast status
-  broadcastStatus(session, msg.projectId, wsServer);
+  // Broadcast running status
+  broadcastStatus(session, msg.projectId, wsServer, { agentStatus: 'running' });
 
   try {
     const gen = session.backend.query(msg.prompt, {
@@ -100,7 +100,10 @@ export async function handleAgentQuery(
   } finally {
     session.loading = false;
     send({ type: 'agent:done', projectId: msg.projectId });
-    broadcastStatus(session, msg.projectId, wsServer);
+    broadcastStatus(session, msg.projectId, wsServer, {
+      agentStatus: 'idle',
+      usage: session.backend.getRawUsage(),
+    });
   }
 }
 

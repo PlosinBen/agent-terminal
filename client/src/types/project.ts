@@ -10,6 +10,7 @@ export interface ProjectInfo {
   serverHost: string;
   agentStatus: AgentStatus;
   connectionStatus: ConnectionStatus;
+  provider?: string;
   sessionId?: string;
   model?: string;
   permissionMode?: string;
@@ -22,6 +23,7 @@ export interface SavedProject {
   name: string;
   cwd: string;
   serverHost: string;
+  provider?: string;
   sessionId?: string;
   model?: string;
   permissionMode?: string;

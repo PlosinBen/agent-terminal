@@ -5,8 +5,14 @@ import { createRequire } from 'module';
 import { fixMacOsPath, createServerCore, getPreferredPort, setupGracefulShutdown } from './server-core.js';
 import { logger } from './core/logger.js';
 import { checkForServerUpdate } from './update-check.js';
+import { initRegistry } from './providers/registry.js';
 
 fixMacOsPath();
+
+// Initialize provider registry (detect available providers)
+await initRegistry().catch((err) => {
+  logger.error(`[startup] Failed to initialize provider registry: ${err instanceof Error ? err.message : String(err)}`);
+});
 
 const core = createServerCore();
 setupGracefulShutdown(core);

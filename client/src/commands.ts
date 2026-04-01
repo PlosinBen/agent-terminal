@@ -28,24 +28,30 @@ export function buildCommandList(providerConfig?: ProviderConfig | null): Comman
   const commands: CommandDef[] = [...APP_COMMANDS];
 
   if (providerConfig) {
-    commands.push({
-      name: 'model',
-      description: 'Switch model',
-      argumentHint: '<name>',
-      options: providerConfig.models.map(m => ({ value: m.value, label: m.displayName })),
-    });
-    commands.push({
-      name: 'mode',
-      description: 'Switch permission mode',
-      argumentHint: '<mode>',
-      options: providerConfig.permissionModes.map(m => ({ value: m, label: PERMISSION_MODE_LABELS[m] ?? m })),
-    });
-    commands.push({
-      name: 'effort',
-      description: 'Switch effort level',
-      argumentHint: '<level>',
-      options: providerConfig.effortLevels.map(e => ({ value: e, label: e })),
-    });
+    if (providerConfig.models.length > 0) {
+      commands.push({
+        name: 'model',
+        description: 'Switch model',
+        argumentHint: '<name>',
+        options: providerConfig.models.map(m => ({ value: m.value, label: m.displayName })),
+      });
+    }
+    if (providerConfig.permissionModes.length > 0) {
+      commands.push({
+        name: 'mode',
+        description: 'Switch permission mode',
+        argumentHint: '<mode>',
+        options: providerConfig.permissionModes.map(m => ({ value: m, label: PERMISSION_MODE_LABELS[m] ?? m })),
+      });
+    }
+    if (providerConfig.effortLevels.length > 0) {
+      commands.push({
+        name: 'effort',
+        description: 'Switch effort level',
+        argumentHint: '<level>',
+        options: providerConfig.effortLevels.map(e => ({ value: e, label: e })),
+      });
+    }
 
     if (providerConfig.slashCommands) {
       // Filter out commands already handled client-side

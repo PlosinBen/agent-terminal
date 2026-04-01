@@ -29,6 +29,9 @@ export const ServiceEvent = {
   // Task tracking
   TaskUpdate: 'task:update',
 
+  // Provider
+  ProviderList: 'provider:list',
+
   // Connection lifecycle
   ConnectionChanged: 'connection:changed',
 } as const;
