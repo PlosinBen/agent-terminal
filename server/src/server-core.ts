@@ -2,6 +2,7 @@ import { execFileSync } from 'child_process';
 import { WsServer } from './ws-server.js';
 import { SessionManager } from './session-manager.js';
 import { logger } from './core/logger.js';
+import { listProviders } from './providers/registry.js';
 import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
 
 /** Fix PATH for GUI-launched apps on macOS */
@@ -39,6 +40,15 @@ export function createServerCore(): ServerCore {
 
   wsServer.onMessage((msg: UpstreamMessage, send: (reply: DownstreamMessage) => void) => {
     sessionManager.handleMessage(msg, send, wsServer);
+  });
+
+  // Push available provider list to each new client
+  wsServer.onConnect((send) => {
+    const providers = listProviders().map(p => ({
+      name: p.name,
+      displayName: p.displayName,
+    }));
+    send({ type: 'provider:list', providers });
   });
 
   return { wsServer, sessionManager };

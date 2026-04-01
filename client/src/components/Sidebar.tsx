@@ -70,7 +70,12 @@ export function Sidebar({ visible, onNew, onRevealInFinder, onOpenSettings, newP
               </span>
               <div className="sidebar-item-text">
                 <span className="sidebar-item-name">{p.name}</span>
-                <span className="sidebar-item-folder" title={p.cwd}>{p.cwd.split('/').pop()}</span>
+                <span className="sidebar-item-folder" title={p.cwd}>
+                  {p.cwd.split('/').pop()}
+                  {p.provider && p.provider !== 'claude' && (
+                    <span className="sidebar-item-provider"> ({p.provider})</span>
+                  )}
+                </span>
               </div>
             </div>
           );

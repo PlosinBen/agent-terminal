@@ -1,9 +1,15 @@
 import { create } from 'zustand';
 import type { ServerConfig } from '../types/server';
+import type { ProviderListMsg } from '@shared/protocol';
 import { loadServers, saveServers } from '../service/server-storage';
 import type { AgentService } from '../service/agent-service';
 import { ServiceEvent } from '../service/types';
 import type { ConnectionChangedPayload } from '../service/types';
+
+export interface AvailableProvider {
+  name: string;
+  displayName: string;
+}
 
 export const DEFAULT_SERVER_HOST = typeof window !== 'undefined' && (window as any).electronAPI
   ? `localhost:${import.meta.env.VITE_SERVER_PORT || 9100}`
@@ -22,9 +28,12 @@ interface ServerState {
   /** Whether the local server WebSocket is connected. */
   localConnected: boolean;
 
+  /** Available providers reported by the server. */
+  providers: AvailableProvider[];
+
   // ── Internal ──
   _service: AgentService | null;
-  _unsub: (() => void) | null;
+  _unsubs: (() => void)[];
 
   /** Initialize: open local WS connection, subscribe to ConnectionChanged. */
   init: (service: AgentService) => void;
@@ -53,9 +62,10 @@ export const useServerStore = create<ServerState>()((set, get) => ({
   localHost: DEFAULT_SERVER_HOST,
   homePath: '/',
   localConnected: false,
+  providers: [],
 
   _service: null,
-  _unsub: null,
+  _unsubs: [],
 
   init: (service) => {
     const host = DEFAULT_SERVER_HOST;
@@ -74,7 +84,7 @@ export const useServerStore = create<ServerState>()((set, get) => ({
     }
 
     // Subscribe to connection status changes for server-level state
-    const unsub = service.on(ServiceEvent.ConnectionChanged, (payload) => {
+    const connUnsub = service.on(ServiceEvent.ConnectionChanged, (payload) => {
       const ev = payload as ConnectionChangedPayload;
       if (ev.host === get().localHost) {
         set({ localConnected: ev.status === 'connected' });
@@ -86,16 +96,22 @@ export const useServerStore = create<ServerState>()((set, get) => ({
       }
     });
 
-    set({ _unsub: unsub });
+    // Subscribe to provider list from server
+    const provUnsub = service.on(ServiceEvent.ProviderList, (payload) => {
+      const msg = payload as ProviderListMsg;
+      set({ providers: msg.providers });
+    });
+
+    set({ _unsubs: [connUnsub, provUnsub] });
   },
 
   dispose: () => {
-    const { _unsub, _service, localHost } = get();
-    _unsub?.();
+    const { _unsubs, _service, localHost } = get();
+    for (const unsub of _unsubs) unsub();
     if (_service && localHost) {
       _service.releaseConnection(localHost);
     }
-    set({ _service: null, _unsub: null });
+    set({ _service: null, _unsubs: [] });
   },
 
   setLocalConnected: (connected) => set({ localConnected: connected }),

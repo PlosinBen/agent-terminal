@@ -93,6 +93,7 @@ export class AgentService {
       type: 'project:create', id: project.id, cwd: project.cwd,
       requestId: nextRequestId(),
       sessionId: project.sessionId,
+      provider: project.provider,
     }, 'project:created');
     return msg.project;
   }
@@ -250,6 +251,9 @@ export class AgentService {
         break;
       case 'task:update':
         this.emit(ServiceEvent.TaskUpdate, msg);
+        break;
+      case 'provider:list':
+        this.emit(ServiceEvent.ProviderList, msg);
         break;
       // project:created, folder:list_result are handled by Promise resolvers
       // project:list_result not currently used

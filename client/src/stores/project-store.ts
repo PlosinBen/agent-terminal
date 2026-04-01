@@ -75,7 +75,7 @@ interface ProjectStoreState {
 
   // Project list actions
   setActiveProjectId: (id: string | null) => void;
-  createProject: (cwd: string, serverHost: string) => void;
+  createProject: (cwd: string, serverHost: string, provider?: string, name?: string) => void;
   connectProject: (project: ProjectInfo) => Promise<void>;
   closeProject: (id: string) => void;
   reorderProjects: (fromIndex: number, toIndex: number) => void;
@@ -101,7 +101,7 @@ interface ProjectStoreState {
 function persistProjects(projects: ProjectInfo[]) {
   saveSavedProjects(projects.map(p => ({
     id: p.id, name: p.name, cwd: p.cwd, serverHost: p.serverHost,
-    sessionId: p.sessionId, model: p.model,
+    provider: p.provider, sessionId: p.sessionId, model: p.model,
     permissionMode: p.permissionMode, effort: p.effort,
   })));
 }
@@ -142,7 +142,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
 
   setActiveProjectId: (id) => set({ activeProjectId: id }),
 
-  createProject: (cwd, serverHost) => {
+  createProject: (cwd, serverHost, provider, customName) => {
     const { projects, connectProject: connect } = get();
 
     // Check if project with same cwd + server already exists
@@ -154,9 +154,10 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
     }
 
     const id = generateProjectId();
-    const name = cwd.split('/').pop() ?? 'project';
+    const name = customName || cwd.split('/').pop() || 'project';
     const p: ProjectInfo = {
       id, name, cwd, serverHost,
+      provider: provider ?? 'claude',
       agentStatus: 'idle', connectionStatus: 'disconnected',
     };
 
@@ -183,12 +184,16 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
       ),
     }));
 
-    await service.connectProject(project);
+    const created = await service.connectProject(project);
 
-    // Mark as connected + init per-project state
+    // Mark as connected + init per-project state, update provider from server response
     set(s => ({
       projects: s.projects.map(p =>
-        p.id === project.id ? { ...p, connectionStatus: 'connected' as const } : p
+        p.id === project.id ? {
+          ...p,
+          connectionStatus: 'connected' as const,
+          ...(created.provider && { provider: created.provider }),
+        } : p
       ),
       projectStates: {
         ...s.projectStates,

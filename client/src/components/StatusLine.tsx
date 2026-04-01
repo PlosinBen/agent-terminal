@@ -1,5 +1,6 @@
 import type { StatusInfo, ProviderConfig } from '../types/message';
 import type { ProjectInfo } from '../types/project';
+import type { AvailableProvider } from '../stores/server-store';
 import { PERMISSION_MODE_LABELS } from '@shared/types';
 import { getStatusDisplay } from '../utils/statusDisplay';
 import { computeUsageSegments } from '../utils/usageSegments';
@@ -9,6 +10,7 @@ interface Props {
   status: StatusInfo;
   project?: ProjectInfo;
   providerConfig?: ProviderConfig | null;
+  providers?: AvailableProvider[];
   onCommand?: (command: string, args: string) => void;
 }
 
@@ -26,7 +28,7 @@ function getOptions(id: string, config: ProviderConfig): string[] {
   return [];
 }
 
-export function StatusLine({ status, project, providerConfig, onCommand }: Props) {
+export function StatusLine({ status, project, providerConfig, providers, onCommand }: Props) {
   const display = getStatusDisplay({
     agentStatus: status.agentStatus,
     connectionStatus: project?.connectionStatus ?? 'disconnected',
@@ -41,6 +43,11 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
     onCommand(command, options[nextIdx]);
   };
 
+  // Resolve provider display name from available providers list
+  const providerLabel = project?.provider
+    ? providers?.find(p => p.name === project.provider)?.displayName ?? project.provider
+    : undefined;
+
   const isInteractive = !!(providerConfig && onCommand);
   const currentModel = project?.model ?? providerConfig?.models[0]?.value ?? 'default';
   const currentMode = project?.permissionMode ?? 'default';
@@ -54,6 +61,12 @@ export function StatusLine({ status, project, providerConfig, onCommand }: Props
         {display.icon}
       </span>
       <span className="status-label">{display.label}</span>
+      {providerLabel && (
+        <>
+          <span className="status-sep">|</span>
+          <span className="status-provider">{providerLabel}</span>
+        </>
+      )}
       <span className="status-sep">|</span>
       <span className="status-branch">{status.gitBranch}</span>
 

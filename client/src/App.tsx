@@ -5,6 +5,7 @@ import { MessageList } from './components/MessageList';
 import { InputArea } from './components/InputArea';
 import { StatusLine } from './components/StatusLine';
 import { FolderPicker } from './components/FolderPicker';
+import { ProjectSetup } from './components/ProjectSetup';
 import { Terminal } from './components/Terminal';
 import { loadKeybindings, formatBinding, type KeybindingConfig } from './keybindings';
 import { loadSettings, type AppSettings } from './settings';
@@ -59,7 +60,7 @@ function ExportMenu({ onExport }: { onExport: (format: string) => void }) {
 export function App() {
   const service = useService();
   const {
-    servers, localHost, homePath, localConnected,
+    servers, localHost, homePath, localConnected, providers,
     addServer, removeServer,
   } = useServerStore();
 
@@ -76,6 +77,7 @@ export function App() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('agent');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [pendingProject, setPendingProject] = useState<{ folderPath: string; serverHost: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchMatchIndices, setSearchMatchIndices] = useState<Set<number>>(new Set());
@@ -405,7 +407,7 @@ export function App() {
                 appearance={settings.appearance}
               />
             </div>
-            <StatusLine status={status} project={activeProject} providerConfig={providerConfig} onCommand={updateProjectConfig} />
+            <StatusLine status={status} project={activeProject} providerConfig={providerConfig} providers={providers} onCommand={updateProjectConfig} />
             {activeProject?.connectionStatus === 'reconnecting' && (
               <div className="reconnecting-overlay">Reconnecting...</div>
             )}
@@ -448,11 +450,22 @@ export function App() {
           keybindings={keybindings}
           onSelect={(folderPath, selectedHost) => {
             setShowFolderPicker(false);
-            createProject(folderPath, selectedHost);
+            setPendingProject({ folderPath, serverHost: selectedHost });
           }}
           onCancel={() => setShowFolderPicker(false)}
           onAddServer={addServer}
           onRemoveServer={removeServer}
+        />
+      )}
+      {pendingProject && (
+        <ProjectSetup
+          folderPath={pendingProject.folderPath}
+          providers={providers}
+          onConfirm={(name, provider) => {
+            createProject(pendingProject.folderPath, pendingProject.serverHost, provider, name);
+            setPendingProject(null);
+          }}
+          onCancel={() => setPendingProject(null)}
         />
       )}
     </div>
