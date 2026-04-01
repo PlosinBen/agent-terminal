@@ -7,7 +7,7 @@ export const provider: ProviderDefinition = {
   name: 'gemini',
   displayName: 'Gemini',
 
-  createBackend: () => new GeminiBackend(),
+  createBackend: (opts) => new GeminiBackend(opts),
 
   checkAvailable: async () => {
     try {

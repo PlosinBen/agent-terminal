@@ -1,10 +1,11 @@
 import type { ProviderDefinition } from './types.js';
 import { provider as claude } from './claude/index.js';
 import { provider as gemini } from './gemini/index.js';
+import { provider as copilot } from './copilot/index.js';
 import { provider as mock } from './mock/index.js';
 import { logger } from '../core/logger.js';
 
-const allProviders: ProviderDefinition[] = [claude, gemini, mock];
+const allProviders: ProviderDefinition[] = [claude, gemini, copilot, mock];
 let availableProviders: ProviderDefinition[] = [];
 
 /**
