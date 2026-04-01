@@ -2,8 +2,8 @@
  * WebSocket protocol — shared message types between main process and renderer.
  */
 
-import type { AgentStatus, RawUsageData, ProviderConfig } from './types';
-export type { ProviderConfig } from './types';
+import type { AgentStatus, RawUsageData, ProviderConfig } from './types.js';
+export type { ProviderConfig } from './types.js';
 
 // ── Renderer → Main ──
 

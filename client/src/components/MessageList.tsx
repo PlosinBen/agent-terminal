@@ -278,11 +278,9 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
         </div>
       )}
       {loading && !permissionReq && (
-        <div className="turn">
-          <div className="turn-agent">
-            <div className="msg msg-loading">
-              <span className="spinner" /> Agent is thinking...
-            </div>
+        <div className="turn-agent turn-loading">
+          <div className="msg msg-loading">
+            <span className="spinner" /> Agent is thinking...
           </div>
         </div>
       )}
