@@ -1,4 +1,4 @@
-import type { ModelOption, CommandInfo } from '../backend/types.js';
+import type { ModelOption, CommandInfo } from '../providers/types.js';
 
 export interface ProviderCache {
   models: ModelOption[];

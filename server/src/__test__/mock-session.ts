@@ -22,6 +22,7 @@ export function createMockSession(overrides?: Partial<ProjectSession>): ProjectS
       cwd: '/tmp/test',
       createdAt: new Date().toISOString(),
       lastOpenedAt: new Date().toISOString(),
+      provider: 'claude',
     },
     backend: createMockBackend(),
     loading: false,

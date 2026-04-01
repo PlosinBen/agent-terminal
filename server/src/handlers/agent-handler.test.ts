@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { DownstreamMessage } from '../shared/protocol.js';
-import type { AgentMessage } from '../backend/types.js';
+import type { AgentMessage } from '../providers/types.js';
 import { createMockBackend } from '../__test__/mock-backend.js';
 import { createMockSession } from '../__test__/mock-session.js';
 import {

@@ -62,6 +62,7 @@ export interface ProjectCreateMsg {
   cwd: string;
   requestId: string;
   sessionId?: string;
+  provider?: string;
 }
 
 export interface ProjectListMsg {
@@ -189,22 +190,23 @@ export interface PtyExitMsg {
 export interface StatusUpdateMsg {
   type: 'status:update';
   projectId: string;
-  usage: RawUsageData;
-  agentStatus: AgentStatus;
-  gitBranch: string;
+  usage?: RawUsageData;
+  agentStatus?: AgentStatus;
+  gitBranch?: string;
   providerConfig?: ProviderConfig;
 }
 
 export interface ProjectCreatedMsg {
   type: 'project:created';
   requestId: string;
-  project: { id: string; name: string; cwd: string };
+  project: { id: string; name: string; cwd: string; provider?: string; providerDisplayName?: string };
+  error?: string;
 }
 
 export interface ProjectListResultMsg {
   type: 'project:list_result';
   requestId: string;
-  projects: { id: string; name: string; cwd: string }[];
+  projects: { id: string; name: string; cwd: string; provider?: string }[];
 }
 
 export interface FolderListResultMsg {
@@ -246,6 +248,11 @@ export interface TaskUpdateMsg {
   tasks: TaskInfo[];
 }
 
+export interface ProviderListMsg {
+  type: 'provider:list';
+  providers: { name: string; displayName: string }[];
+}
+
 export type DownstreamMessage =
   | AgentTextMsg
   | AgentThinkingMsg
@@ -265,4 +272,5 @@ export type DownstreamMessage =
   | FolderListResultMsg
   | ServerInfoResultMsg
   | CommandResultMsg
-  | TaskUpdateMsg;
+  | TaskUpdateMsg
+  | ProviderListMsg;

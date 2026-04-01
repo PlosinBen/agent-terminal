@@ -1,6 +1,6 @@
 import type { UpstreamMessage, DownstreamMessage } from './shared/protocol.js';
 import type { WsServer } from './ws-server.js';
-import type { AgentBackend } from './backend/types.js';
+import type { AgentBackend } from './providers/types.js';
 import type { ProjectConfig } from './core/workspace.js';
 import type { FSWatcher } from 'fs';
 import type * as pty from 'node-pty';

@@ -53,4 +53,20 @@ export interface AgentBackend {
   getSlashCommands(): CommandInfo[];
   executeCommand(name: string, args: string): Promise<ProviderCommandResult | null>;
   onInit(callback: () => void): void;
+  warmup?(cwd: string): Promise<void>;
+}
+
+/**
+ * Provider definition — each provider folder exports one of these.
+ * Contains metadata + factory for creating backend instances.
+ */
+export interface ProviderDefinition {
+  /** Unique key, e.g. 'claude', 'gemini' */
+  name: string;
+  /** Display name for UI, e.g. 'Claude', 'Gemini' */
+  displayName: string;
+  /** Create a new backend instance */
+  createBackend(opts?: { sessionId?: string }): AgentBackend;
+  /** Check if this provider is available on the current machine */
+  checkAvailable(): Promise<boolean>;
 }

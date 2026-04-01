@@ -1,4 +1,5 @@
-import type { DownstreamMessage, ProviderConfig } from '../shared/protocol.js';
+import type { ProviderConfig, StatusUpdateMsg } from '../shared/protocol.js';
+import type { AgentStatus, RawUsageData } from '../shared/types.js';
 import type { WsServer } from '../ws-server.js';
 import type { ProjectSession } from '../session-manager.js';
 import { execSync } from 'child_process';
@@ -42,28 +43,55 @@ export function watchGitHead(
   }
 }
 
+/**
+ * Partial status update fields. Only provided fields will be sent to the client.
+ */
+interface StatusFields {
+  agentStatus?: AgentStatus;
+  usage?: RawUsageData;
+  gitBranch?: string;
+  providerConfig?: ProviderConfig;
+}
+
+/**
+ * Broadcast a partial status update. Only sends the fields provided.
+ * Client merges incoming fields with existing state (fields not sent are preserved).
+ */
 export function broadcastStatus(
   session: ProjectSession,
   projectId: string,
   wsServer: WsServer,
+  fields?: StatusFields,
 ): void {
-  const agentStatus = session.permissionResolvers.size > 0
-    ? 'attention' as const
-    : session.loading
-      ? 'running' as const
-      : 'idle' as const;
+  // If no specific fields provided, send everything (backward compat)
+  if (!fields) {
+    const agentStatus = session.permissionResolvers.size > 0
+      ? 'attention' as const
+      : session.loading
+        ? 'running' as const
+        : 'idle' as const;
 
-  const cache = getProviderCache('claude');
-  const providerConfig: ProviderConfig | undefined = cache
-    ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels, slashCommands: cache.slashCommands }
-    : undefined;
+    const cache = getProviderCache(session.project.provider);
+    const providerConfig: ProviderConfig | undefined = cache
+      ? { models: cache.models, permissionModes: cache.permissionModes, effortLevels: cache.effortLevels, slashCommands: cache.slashCommands }
+      : undefined;
 
-  wsServer.broadcast({
+    wsServer.broadcast({
+      type: 'status:update',
+      projectId,
+      usage: session.backend.getRawUsage(),
+      agentStatus,
+      gitBranch: getGitBranch(session.project.cwd),
+      providerConfig,
+    });
+    return;
+  }
+
+  // Partial update: only send provided fields
+  const msg: StatusUpdateMsg = {
     type: 'status:update',
     projectId,
-    usage: session.backend.getRawUsage(),
-    agentStatus,
-    gitBranch: getGitBranch(session.project.cwd),
-    providerConfig,
-  });
+    ...fields,
+  };
+  wsServer.broadcast(msg);
 }

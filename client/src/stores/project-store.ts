@@ -505,29 +505,38 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
             break;
 
           case 'status:update': {
-            let config = msg.providerConfig ?? ps.providerConfig;
-            if (config && msg.providerConfig) {
-              // Expand model list with user-configured aliases (opus, [1m], opusplan)
+            // Partial update: only update fields that are provided, preserve existing values
+            let config = ps.providerConfig;
+            if (msg.providerConfig) {
               const { models: modelSettings } = loadSettings();
-              config = { ...config, models: expandModels(config.models, modelSettings) };
+              config = { ...msg.providerConfig, models: expandModels(msg.providerConfig.models, modelSettings) };
             }
+
             // Merge rate limits: keep existing entries, update/add incoming ones by type
             const prevUsage = ps.status.usage;
-            const prevLimits = prevUsage?.rateLimits ?? [];
-            const incomingLimits = msg.usage?.rateLimits ?? [];
-            const mergedMap = new Map(prevLimits.map(rl => [rl.type, rl]));
-            for (const rl of incomingLimits) {
-              mergedMap.set(rl.type, rl);
+            let mergedUsage = prevUsage;
+            if (msg.usage) {
+              const prevLimits = prevUsage?.rateLimits ?? [];
+              const incomingLimits = msg.usage.rateLimits ?? [];
+              const mergedMap = new Map(prevLimits.map(rl => [rl.type, rl]));
+              for (const rl of incomingLimits) {
+                mergedMap.set(rl.type, rl);
+              }
+              mergedUsage = { ...msg.usage, rateLimits: Array.from(mergedMap.values()) };
             }
-            const mergedUsage = msg.usage
-              ? { ...msg.usage, rateLimits: Array.from(mergedMap.values()) }
-              : prevUsage;
+
             updated = {
               ...ps,
-              status: { usage: mergedUsage, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
+              status: {
+                usage: mergedUsage,
+                agentStatus: msg.agentStatus ?? ps.status.agentStatus,
+                gitBranch: msg.gitBranch ?? ps.status.gitBranch,
+              },
               providerConfig: config,
             };
-            setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
+            if (msg.agentStatus) {
+              setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
+            }
             break;
           }
 

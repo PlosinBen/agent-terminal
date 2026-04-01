@@ -1,22 +1,35 @@
 import type { DownstreamMessage } from '../shared/protocol.js';
 import type { WsServer } from '../ws-server.js';
 import type { ProjectSession } from '../session-manager.js';
-import { ClaudeBackend } from '../backend/claude/backend.js';
+import { getProvider } from '../providers/registry.js';
 import { createProject } from '../core/workspace.js';
 import { TaskTracker } from '../core/task.js';
-import { watchGitHead, broadcastStatus } from './git-watcher.js';
+import { watchGitHead, broadcastStatus, getGitBranch } from './git-watcher.js';
 import { logger } from '../core/logger.js';
 
 export function handleProjectCreate(
-  msg: { id: string; cwd: string; requestId: string; sessionId?: string },
+  msg: { id: string; cwd: string; requestId: string; sessionId?: string; provider?: string },
   send: (reply: DownstreamMessage) => void,
   sessions: Map<string, ProjectSession>,
   wsServer: WsServer | null,
 ): void {
-  const project = createProject(msg.id, msg.cwd);
+  const providerName = msg.provider ?? 'claude';
+  const providerDef = getProvider(providerName);
+
+  if (!providerDef) {
+    send({
+      type: 'project:created',
+      requestId: msg.requestId,
+      project: { id: msg.id, name: '', cwd: msg.cwd },
+      error: `Provider "${providerName}" is not available`,
+    } as DownstreamMessage);
+    return;
+  }
+
+  const project = createProject(msg.id, msg.cwd, providerName);
   if (msg.sessionId) project.sessionId = msg.sessionId;
 
-  const backend = new ClaudeBackend({
+  const backend = providerDef.createBackend({
     sessionId: project.sessionId,
   });
 
@@ -38,9 +51,11 @@ export function handleProjectCreate(
 
   sessions.set(project.id, session);
 
-  // Watch .git/HEAD for branch changes
+  // Watch .git/HEAD for branch changes — send only gitBranch
   watchGitHead(session, project.id, project.cwd, () => {
-    if (wsServer) broadcastStatus(session, project.id, wsServer);
+    if (wsServer) broadcastStatus(session, project.id, wsServer, {
+      gitBranch: getGitBranch(project.cwd),
+    });
   });
 
   // Broadcast status after backend init (provider config becomes available)
@@ -51,14 +66,22 @@ export function handleProjectCreate(
   send({
     type: 'project:created',
     requestId: msg.requestId,
-    project: { id: project.id, name: project.name, cwd: project.cwd },
+    project: {
+      id: project.id,
+      name: project.name,
+      cwd: project.cwd,
+      provider: providerName,
+      providerDisplayName: providerDef.displayName,
+    },
   });
 
   // Warm-up: initialize SDK to get provider config (models, commands) early
   // First status:update will be sent via backend.onInit() callback above
-  backend.warmup(project.cwd).catch((err) => {
-    logger.error(`[warmup] Failed for project ${project.id}: ${err instanceof Error ? err.message : String(err)}`);
-  });
+  if (backend.warmup) {
+    backend.warmup(project.cwd).catch((err) => {
+      logger.error(`[warmup] Failed for project ${project.id}: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
 }
 
 export function handleProjectList(
@@ -68,6 +91,7 @@ export function handleProjectList(
 ): void {
   const projects = Array.from(sessions.values()).map(s => ({
     id: s.project.id, name: s.project.name, cwd: s.project.cwd,
+    provider: s.project.provider,
   }));
   send({
     type: 'project:list_result',

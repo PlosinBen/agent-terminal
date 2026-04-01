@@ -20,13 +20,13 @@ export interface RateLimitData {
 }
 
 export interface RawUsageData {
-  costUsd: number;
-  inputTokens: number;
-  outputTokens: number;
-  contextUsedTokens: number;
-  contextWindow: number;
-  numTurns: number;
-  rateLimits: RateLimitData[];
+  costUsd?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  contextUsedTokens?: number;
+  contextWindow?: number;
+  numTurns?: number;
+  rateLimits?: RateLimitData[];
 }
 
 // ── Provider ──

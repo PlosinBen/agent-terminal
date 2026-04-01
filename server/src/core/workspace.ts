@@ -7,18 +7,20 @@ export interface ProjectConfig {
   createdAt: string;
   lastOpenedAt: string;
   sessionId?: string;
+  provider: string;
 }
 
 /**
  * Create an in-memory ProjectConfig. No disk persistence —
  * client localStorage is the source of truth.
  */
-export function createProject(id: string, cwd: string): ProjectConfig {
+export function createProject(id: string, cwd: string, provider = 'claude'): ProjectConfig {
   return {
     id,
     name: path.basename(cwd),
     cwd,
     createdAt: new Date().toISOString(),
     lastOpenedAt: new Date().toISOString(),
+    provider,
   };
 }

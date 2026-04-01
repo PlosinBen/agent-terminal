@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "cp ../shared/*.ts src/shared/ && rm -rf dist && tsc",
     "dev": "tsc --watch --preserveWatchOutput",
     "start": "node dist/standalone.js",
     "test": "vitest run",

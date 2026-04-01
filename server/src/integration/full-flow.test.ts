@@ -2,23 +2,35 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WebSocket } from 'ws';
 import { createMockBackend } from '../__test__/mock-backend.js';
 import { connectWs, sendAndWait, collectUntil } from '../__test__/ws-helpers.js';
-import type { AgentMessage } from '../backend/types.js';
+import type { AgentMessage } from '../providers/types.js';
 
-// Mock external dependencies — inline factory (vi.mock is hoisted, can't reference imports)
-vi.mock('../backend/claude/backend.js', () => ({
-  ClaudeBackend: vi.fn().mockImplementation(() => ({
-    query: async function* () {},
-    stop: vi.fn(),
-    setPermissionHandler: vi.fn(),
-    setPermissionMode: vi.fn().mockResolvedValue(undefined),
-    getRawUsage: vi.fn().mockReturnValue({ costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] }),
-    isInitialized: vi.fn().mockReturnValue(true),
-    getProviderCommands: vi.fn().mockReturnValue([]),
-    getSlashCommands: vi.fn().mockReturnValue([]),
-    executeCommand: vi.fn().mockResolvedValue(null),
-    onInit: vi.fn(),
-    warmup: vi.fn().mockResolvedValue(undefined),
-  })),
+// Mock provider registry to return a mock Claude backend
+const mockBackendFactory = vi.fn().mockImplementation(() => ({
+  query: async function* () {},
+  stop: vi.fn(),
+  setPermissionHandler: vi.fn(),
+  setPermissionMode: vi.fn().mockResolvedValue(undefined),
+  getRawUsage: vi.fn().mockReturnValue({ costUsd: 0, inputTokens: 0, outputTokens: 0, contextUsedTokens: 0, contextWindow: 0, numTurns: 1, rateLimits: [] }),
+  isInitialized: vi.fn().mockReturnValue(true),
+  getProviderCommands: vi.fn().mockReturnValue([]),
+  getSlashCommands: vi.fn().mockReturnValue([]),
+  executeCommand: vi.fn().mockResolvedValue(null),
+  onInit: vi.fn(),
+  warmup: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../providers/registry.js', () => ({
+  getProvider: vi.fn().mockReturnValue({
+    name: 'claude',
+    displayName: 'Claude',
+    createBackend: (...args: any[]) => mockBackendFactory(...args),
+    checkAvailable: vi.fn().mockResolvedValue(true),
+  }),
+  listProviders: vi.fn().mockReturnValue([{
+    name: 'claude',
+    displayName: 'Claude',
+  }]),
+  initRegistry: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../handlers/git-watcher.js', () => ({
@@ -38,7 +50,6 @@ vi.mock('node-pty', () => ({
 }));
 
 import { createServerCore } from '../server-core.js';
-import { ClaudeBackend } from '../backend/claude/backend.js';
 
 describe('Full-flow integration', () => {
   let wsServer: ReturnType<typeof createServerCore>['wsServer'];
@@ -99,7 +110,7 @@ describe('Full-flow integration', () => {
     ];
 
     // Configure the mock to yield messages
-    (ClaudeBackend as any).mockImplementation(() =>
+    mockBackendFactory.mockImplementation(() =>
       createMockBackend({
         query: async function* () { for (const m of messages) yield m; },
       }),
