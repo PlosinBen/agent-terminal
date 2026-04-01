@@ -112,6 +112,7 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
   projects: loadSavedProjects().map(p => ({
     ...p,
     serverHost: p.serverHost || DEFAULT_SERVER_HOST,
+    provider: p.provider || 'claude',
     agentStatus: 'idle' as const,
     connectionStatus: 'disconnected' as const,
   })),

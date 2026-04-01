@@ -73,39 +73,45 @@ export function StatusLine({ status, project, providerConfig, providers, onComma
       {isInteractive && (
         <>
           {/* Model */}
-          <span className="status-segment">
-            <span className="status-sep">|</span>
-            <span
-              className="status-seg-interactive"
-              onClick={() => handleCycle('model', 'model', currentModel)}
-            >
-              {currentModel}
+          {providerConfig!.models.length > 0 && (
+            <span className="status-segment">
+              <span className="status-sep">|</span>
+              <span
+                className="status-seg-interactive"
+                onClick={() => handleCycle('model', 'model', currentModel)}
+              >
+                {currentModel}
+              </span>
             </span>
-          </span>
+          )}
 
           {/* Permission Mode */}
-          <span className="status-segment">
-            <span className="status-sep">|</span>
-            <span
-              className="status-seg-interactive"
-              style={{ color: modeColor }}
-              onClick={() => handleCycle('permissionMode', 'mode', currentMode)}
-            >
-              {modeLabel}
+          {providerConfig!.permissionModes.length > 0 && (
+            <span className="status-segment">
+              <span className="status-sep">|</span>
+              <span
+                className="status-seg-interactive"
+                style={{ color: modeColor }}
+                onClick={() => handleCycle('permissionMode', 'mode', currentMode)}
+              >
+                {modeLabel}
+              </span>
             </span>
-          </span>
+          )}
 
           {/* Effort */}
-          <span className="status-segment">
-            <span className="status-sep">|</span>
-            <span
-              className="status-seg-interactive"
-              onClick={() => handleCycle('effort', 'effort', currentEffort)}
-            >
-              <span className="status-seg-label">effort: </span>
-              {currentEffort}
+          {providerConfig!.effortLevels.length > 0 && (
+            <span className="status-segment">
+              <span className="status-sep">|</span>
+              <span
+                className="status-seg-interactive"
+                onClick={() => handleCycle('effort', 'effort', currentEffort)}
+              >
+                <span className="status-seg-label">effort: </span>
+                {currentEffort}
+              </span>
             </span>
-          </span>
+          )}
         </>
       )}
 
