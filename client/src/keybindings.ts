@@ -33,8 +33,8 @@ export const DEFAULT_KEYBINDINGS: KeybindingConfig = {
   prevProject: 'mod+ArrowUp',
   nextProject: 'mod+ArrowDown',
   toggleTerminal: 'mod+`',
-  nextTab: 'mod+ArrowRight',
-  prevTab: 'mod+ArrowLeft',
+  nextTab: 'mod+shift+]',
+  prevTab: 'mod+shift+[',
   // Search
   searchMessages: 'mod+f',
   // Folder Picker
