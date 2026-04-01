@@ -511,9 +511,20 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
               const { models: modelSettings } = loadSettings();
               config = { ...config, models: expandModels(config.models, modelSettings) };
             }
+            // Merge rate limits: keep existing entries, update/add incoming ones by type
+            const prevUsage = ps.status.usage;
+            const prevLimits = prevUsage?.rateLimits ?? [];
+            const incomingLimits = msg.usage?.rateLimits ?? [];
+            const mergedMap = new Map(prevLimits.map(rl => [rl.type, rl]));
+            for (const rl of incomingLimits) {
+              mergedMap.set(rl.type, rl);
+            }
+            const mergedUsage = msg.usage
+              ? { ...msg.usage, rateLimits: Array.from(mergedMap.values()) }
+              : prevUsage;
             updated = {
               ...ps,
-              status: { usage: msg.usage, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
+              status: { usage: mergedUsage, agentStatus: msg.agentStatus, gitBranch: msg.gitBranch },
               providerConfig: config,
             };
             setTimeout(() => get().applyConfigUpdate({ projectId: pid, agentStatus: msg.agentStatus }), 0);
