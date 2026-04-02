@@ -78,7 +78,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
 };
 
-const STORAGE_KEY = 'agent-terminal:settings';
+import { storageKey } from './storage/namespace';
+
+const STORAGE_KEY = storageKey('agent-terminal:settings');
 
 export function loadSettings(): AppSettings {
   try {

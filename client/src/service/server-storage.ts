@@ -1,6 +1,8 @@
 import type { ServerConfig } from '../types/server';
 
-const STORAGE_KEY = 'agent-terminal:servers';
+import { storageKey } from '../storage/namespace';
+
+const STORAGE_KEY = storageKey('agent-terminal:servers');
 
 export function loadServers(): ServerConfig[] {
   try {

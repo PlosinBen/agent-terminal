@@ -1,7 +1,9 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { Message } from '../types/message';
 
-const DB_NAME = 'agent-terminal-history';
+import { dbName } from './namespace';
+
+const DB_NAME = dbName('agent-terminal-history');
 const DB_VERSION = 1;
 const STORE_NAME = 'messages';
 const TOOL_RESULT_MAX = 10 * 1024; // 10KB

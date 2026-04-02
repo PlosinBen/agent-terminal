@@ -42,7 +42,9 @@ export const DEFAULT_KEYBINDINGS: KeybindingConfig = {
   fpPrevServer: 'shift+Tab',
 };
 
-const STORAGE_KEY = 'agent-terminal:keybindings';
+import { storageKey } from './storage/namespace';
+
+const STORAGE_KEY = storageKey('agent-terminal:keybindings');
 const IS_MAC = navigator.platform.toUpperCase().includes('MAC');
 
 // ── Parse & Match ──

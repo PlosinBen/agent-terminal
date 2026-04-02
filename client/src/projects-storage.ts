@@ -1,6 +1,7 @@
 import type { SavedProject } from './types/project';
+import { storageKey } from './storage/namespace';
 
-const STORAGE_KEY = 'agent-terminal:projects';
+const STORAGE_KEY = storageKey('agent-terminal:projects');
 
 export function generateProjectId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
