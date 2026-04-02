@@ -22,12 +22,12 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "release": "npm run build && electron-builder --publish always",
     "build:server-tarball": "npm run build && node scripts/build-server-tarball.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:e2e": "npm run build:server && cd e2e && npx playwright test",
     "test:e2e:ui": "npm run build:server && cd e2e && npx playwright test --ui",
-    "test:e2e:headed": "npm run build:server && cd e2e && npx playwright test --headed",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:e2e:headed": "npm run build:server && cd e2e && npx playwright test --headed"
   },
   "build": {
     "appId": "com.plosinben.agent-terminal",
