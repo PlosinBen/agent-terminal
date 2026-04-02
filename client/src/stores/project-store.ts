@@ -87,6 +87,7 @@ interface ProjectStoreState {
   addAutoAllowTool: (projectId: string, toolName: string) => void;
   clearAgentNotify: (projectId: string) => void;
   loadMoreHistory: (projectId: string) => Promise<void>;
+  updateToolInput: (projectId: string, toolName: string, updatedInput: Record<string, unknown>) => void;
 
   // Config
   applyConfigUpdate: (update: ConfigUpdate) => void;
@@ -358,6 +359,27 @@ export const useProjectStore = create<ProjectStoreState>()((set, get) => ({
         projectStates: {
           ...s.projectStates,
           [projectId]: { ...ps, autoAllowTools: next },
+        },
+      };
+    });
+  },
+
+  updateToolInput: (projectId, toolName, updatedInput) => {
+    set(s => {
+      const ps = s.projectStates[projectId];
+      if (!ps) return s;
+      // Find the last tool_use message with matching toolName and update its toolInput
+      const messages = [...ps.messages];
+      for (let j = messages.length - 1; j >= 0; j--) {
+        if (messages[j].toolName === toolName && messages[j].messageType === 'tool_use') {
+          messages[j] = { ...messages[j], toolInput: updatedInput };
+          break;
+        }
+      }
+      return {
+        projectStates: {
+          ...s.projectStates,
+          [projectId]: { ...ps, messages },
         },
       };
     });

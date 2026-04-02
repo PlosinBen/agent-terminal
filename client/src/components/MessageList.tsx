@@ -6,6 +6,7 @@ import { MarkdownBlock } from './messages/MarkdownBlock';
 import { ThinkingBlock } from './messages/ThinkingBlock';
 import { ToolCallBlock } from './messages/ToolCallBlock';
 import { PermissionBanner, type PermissionResponse } from './messages/PermissionBanner';
+import { AskUserQuestion } from './messages/AskUserQuestion';
 import type { PermissionReq } from '../types/message';
 import './MessageList.css';
 
@@ -274,7 +275,11 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
       )}
       {permissionReq && onPermissionRespond && (
         <div className="msg">
-          <PermissionBanner req={permissionReq} onRespond={onPermissionRespond} cwd={cwd} />
+          {permissionReq.toolName === 'AskUserQuestion' ? (
+            <AskUserQuestion req={permissionReq} onRespond={onPermissionRespond} />
+          ) : (
+            <PermissionBanner req={permissionReq} onRespond={onPermissionRespond} cwd={cwd} />
+          )}
         </div>
       )}
       {loading && !permissionReq && (

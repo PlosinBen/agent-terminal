@@ -46,6 +46,10 @@ function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: 
       return truncate(String(input.description || input.prompt || ''), 80);
     case 'TodoWrite':
       return 'update tasks';
+    case 'AskUserQuestion': {
+      const qs = input.questions as Array<{ header?: string }> | undefined;
+      return qs ? `${qs.length} question${qs.length > 1 ? 's' : ''}` : '';
+    }
     default:
       return '';
   }
@@ -214,6 +218,61 @@ function TodoContent({ input }: { input: Record<string, unknown> }) {
   );
 }
 
+function AskUserQuestionContent({ input, result }: { input: Record<string, unknown>; result?: string }) {
+  const questions = input.questions as Array<{
+    question: string;
+    header: string;
+    options: Array<{ label: string; description?: string }>;
+    multiSelect?: boolean;
+  }> | undefined;
+
+  // Parse answers from result (SDK returns JSON with answers)
+  let answers: Record<string, string> = {};
+  let annotations: Record<string, { notes?: string }> = {};
+  if (result) {
+    try {
+      const parsed = JSON.parse(result);
+      if (parsed.answers) answers = parsed.answers;
+      if (parsed.annotations) annotations = parsed.annotations;
+    } catch {
+      // Also check input for answers (set via updatedInput)
+    }
+  }
+  // Fallback: answers might be in input (from updatedInput)
+  if (Object.keys(answers).length === 0 && input.answers) {
+    answers = input.answers as Record<string, string>;
+  }
+  if (Object.keys(annotations).length === 0 && input.annotations) {
+    annotations = input.annotations as Record<string, { notes?: string }>;
+  }
+
+  if (!questions) return null;
+
+  return (
+    <div className="tool-content">
+      {questions.map((q, i) => {
+        const answer = answers[q.question];
+        const annotation = annotations[q.question];
+        return (
+          <div key={i} className="auq-result-group">
+            <div className="auq-result-question">
+              <span className="auq-result-header">{q.header}</span> - {q.question}
+            </div>
+            {answer ? (
+              <div className="auq-result-answer">
+                <span className="auq-result-check">{'\u2713'}</span>
+                {answer}{annotation?.notes ? `: ${annotation.notes}` : ''}
+              </div>
+            ) : (
+              <div className="auq-result-pending">awaiting response...</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function GenericContent({ input }: { input: Record<string, unknown> }) {
   return (
     <div className="tool-content">
@@ -233,6 +292,7 @@ function renderToolBody(toolName: string, input: Record<string, unknown>, cwd?: 
     case 'Task':
     case 'Agent': return <TaskContent input={input} result={result} />;
     case 'TodoWrite': return <TodoContent input={input} />;
+    case 'AskUserQuestion': return <AskUserQuestionContent input={input} result={result} />;
     default: return <GenericContent input={input} />;
   }
 }

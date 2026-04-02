@@ -158,7 +158,7 @@ export async function handleSetPermissionMode(
 
 export function handlePermissionResponse(
   session: ProjectSession,
-  msg: { requestId: string; result: { behavior: 'allow' } | { behavior: 'deny'; message: string } },
+  msg: { requestId: string; result: { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string } },
 ): void {
   const resolver = session.permissionResolvers.get(msg.requestId);
   if (resolver) {

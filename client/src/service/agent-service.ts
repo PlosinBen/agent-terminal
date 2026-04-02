@@ -140,7 +140,7 @@ export class AgentService {
   respondPermission(
     project: ProjectInfo,
     requestId: string,
-    result: { behavior: 'allow' } | { behavior: 'deny'; message: string },
+    result: { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string },
   ): void {
     this.cm.send(project.serverHost, {
       type: 'permission:response',

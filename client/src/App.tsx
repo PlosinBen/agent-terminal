@@ -275,18 +275,22 @@ export function App() {
     if (project) service.stopAgent(project);
   }, [activeProjectId, service]);
 
-  const { addAutoAllowTool } = useProjectStore();
+  const { addAutoAllowTool, updateToolInput } = useProjectStore();
 
-  const handlePermission = useCallback((response: { result: { behavior: 'allow' } | { behavior: 'deny'; message: string }; alwaysAllow?: boolean }) => {
+  const handlePermission = useCallback((response: { result: { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string }; alwaysAllow?: boolean }) => {
     if (!activeProjectId || !activeState?.permissionReq) return;
     const project = useProjectStore.getState().projects.find(p => p.id === activeProjectId);
     if (!project) return;
     if (response.alwaysAllow) {
       addAutoAllowTool(activeProjectId, activeState.permissionReq.toolName);
     }
+    // Update the tool_use message's toolInput with answers (for AskUserQuestion display)
+    if (response.result.behavior === 'allow' && response.result.updatedInput) {
+      updateToolInput(activeProjectId, activeState.permissionReq.toolName, response.result.updatedInput);
+    }
     service.respondPermission(project, activeState.permissionReq.requestId, response.result);
     clearPermission(activeProjectId);
-  }, [activeProjectId, activeState, service, clearPermission, addAutoAllowTool]);
+  }, [activeProjectId, activeState, service, clearPermission, addAutoAllowTool, updateToolInput]);
 
   // Auto-respond to permission requests for always-allowed tools
   useEffect(() => {

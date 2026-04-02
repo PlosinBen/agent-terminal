@@ -21,7 +21,7 @@ export interface PermissionRequest {
 }
 
 export type PermissionHandler = (req: PermissionRequest) => Promise<
-  { behavior: 'allow' } | { behavior: 'deny'; message: string }
+  { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string }
 >;
 
 export interface CommandInfo {

@@ -3,7 +3,7 @@ import type { PermissionReq } from '../../types/message';
 import './PermissionBanner.css';
 
 export interface PermissionResponse {
-  result: { behavior: 'allow' } | { behavior: 'deny'; message: string };
+  result: { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string };
   alwaysAllow?: boolean;
 }
 

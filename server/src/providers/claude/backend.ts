@@ -173,7 +173,7 @@ export class ClaudeBackend implements AgentBackend {
         title: options.title,
       });
       if (result.behavior === 'allow') {
-        return { behavior: 'allow' as const, updatedInput: input };
+        return { behavior: 'allow' as const, updatedInput: result.updatedInput ?? input };
       }
       return result;
     };

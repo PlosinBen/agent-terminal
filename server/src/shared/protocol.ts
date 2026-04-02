@@ -34,7 +34,7 @@ export interface PermissionResponseMsg {
   type: 'permission:response';
   projectId: string;
   requestId: string;
-  result: { behavior: 'allow' } | { behavior: 'deny'; message: string };
+  result: { behavior: 'allow'; updatedInput?: Record<string, unknown> } | { behavior: 'deny'; message: string };
 }
 
 export interface PtySpawnMsg {
