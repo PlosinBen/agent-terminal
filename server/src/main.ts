@@ -113,7 +113,10 @@ app.whenReady().then(async () => {
 });
 
 function setupAutoUpdater() {
-  import('electron-updater').then((mod) => {
+  Promise.all([
+    import('electron-updater'),
+    import('electron'),
+  ]).then(([mod, { dialog }]) => {
     const eu = mod.default ?? mod;
     const autoUpdater = eu.autoUpdater ?? eu;
     if (!autoUpdater?.on) {
@@ -123,15 +126,30 @@ function setupAutoUpdater() {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
 
-    autoUpdater.on('update-available', (info) => {
+    autoUpdater.on('update-available', (info: { version: string }) => {
       console.log(`[updater] Update available: ${info.version}`);
     });
 
-    autoUpdater.on('update-downloaded', (info) => {
-      console.log(`[updater] Update downloaded: ${info.version}, will install on quit`);
+    autoUpdater.on('update-downloaded', (info: { version: string }) => {
+      console.log(`[updater] Update downloaded: ${info.version}`);
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Update Ready',
+        message: `Version ${info.version} has been downloaded.`,
+        detail: 'Restart now to apply the update.',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+      }).then(({ response }) => {
+        if (response === 0) {
+          // Kill server first, then quit and install
+          serverProcess?.kill();
+          serverProcess = null;
+          setImmediate(() => autoUpdater.quitAndInstall());
+        }
+      });
     });
 
-    autoUpdater.on('error', (err) => {
+    autoUpdater.on('error', (err: Error) => {
       console.error('[updater] Error:', err.message);
     });
 
