@@ -341,6 +341,13 @@ export class ClaudeBackend implements AgentBackend {
               content: String(sysMsg.summary),
               toolUseId: String(sysMsg.tool_use_id),
             };
+          } else if (sysMsg.subtype !== 'init') {
+            // Surface any unhandled system subtypes instead of silently dropping
+            const text = sysMsg.displayText ?? sysMsg.summary ?? sysMsg.message ?? sysMsg.content;
+            if (text) {
+              const clean = String(text).replace(/\x1b\[[0-9;]*m/g, '');
+              yield { type: 'system', content: clean };
+            }
           }
           break;
         }
@@ -353,11 +360,11 @@ export class ClaudeBackend implements AgentBackend {
         }
 
         default: {
-          // Handle SDK-specific message types (compact, etc.)
+          // Surface any unhandled message types instead of silently dropping
           const anyMsg = msg as Record<string, unknown>;
-          if (anyMsg.displayText) {
-            // Strip ANSI escape codes from SDK display text
-            const clean = String(anyMsg.displayText).replace(/\x1b\[[0-9;]*m/g, '');
+          const text = anyMsg.displayText ?? anyMsg.summary ?? anyMsg.message ?? anyMsg.content;
+          if (text) {
+            const clean = String(text).replace(/\x1b\[[0-9;]*m/g, '');
             yield { type: 'system', content: clean };
           }
           break;
