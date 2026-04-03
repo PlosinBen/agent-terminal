@@ -86,6 +86,8 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
 
   // Track whether initial scroll has been performed
   const initialScrollDone = useRef(false);
+  // Track last message count to detect user-sent messages
+  const prevMessageCount = useRef(messages.length);
 
   // Auto-scroll to bottom when new content arrives, only if already at bottom
   useEffect(() => {
@@ -93,6 +95,21 @@ export function MessageList({ messages, loading, cwd, display, hasMoreHistory, l
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   });
+
+  // Force scroll to bottom when user sends a new message (even if scrolled up)
+  useEffect(() => {
+    const prevCount = prevMessageCount.current;
+    prevMessageCount.current = messages.length;
+    if (messages.length > prevCount) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.role === 'user') {
+        isAtBottomRef.current = true;
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    }
+  }, [messages.length]);
 
   // Force scroll to bottom on initial message load (e.g. after agent connection with history)
   useEffect(() => {
