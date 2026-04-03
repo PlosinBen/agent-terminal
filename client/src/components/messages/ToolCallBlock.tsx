@@ -55,9 +55,13 @@ function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: 
   }
 }
 
-function BashContent() {
-  // Command already shown in header summary — no extra body needed
-  return null;
+function BashContent({ input }: { input: Record<string, unknown> }) {
+  const command = String(input.command || '');
+  return (
+    <div className="tool-content">
+      <pre className="tool-code">{command}</pre>
+    </div>
+  );
 }
 
 function EditContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
@@ -138,8 +142,11 @@ function ReadContent({ input, cwd, result }: { input: Record<string, unknown>; c
   const truncated = lines.length > 30;
   const displayLines = truncated ? lines.slice(0, 30) : lines;
 
+  const filePath = stripCwd(String(input.file_path || ''), cwd);
+
   return (
     <div className="tool-content">
+      <div className="tool-file-path">{filePath}</div>
       <pre className="tool-code">{displayLines.join('\n')}{truncated ? `\n... +${lines.length - 30} more lines` : ''}</pre>
     </div>
   );
@@ -156,8 +163,8 @@ function GlobContent({ input }: { input: Record<string, unknown> }) {
 function GrepContent({ input, cwd }: { input: Record<string, unknown>; cwd?: string }) {
   return (
     <div className="tool-content">
-      <pre className="tool-code">{String(input.pattern || '')}</pre>
       {input.path && <div className="tool-file-path">in {stripCwd(String(input.path), cwd)}</div>}
+      <pre className="tool-code">{String(input.pattern || '')}</pre>
     </div>
   );
 }
@@ -283,7 +290,7 @@ function GenericContent({ input }: { input: Record<string, unknown> }) {
 
 function renderToolBody(toolName: string, input: Record<string, unknown>, cwd?: string, result?: string) {
   switch (toolName) {
-    case 'Bash': return <BashContent />;
+    case 'Bash': return <BashContent input={input} />;
     case 'Edit': return <EditContent input={input} cwd={cwd} />;
     case 'Write': return <WriteContent input={input} cwd={cwd} />;
     case 'Read': return <ReadContent input={input} cwd={cwd} result={result} />;
