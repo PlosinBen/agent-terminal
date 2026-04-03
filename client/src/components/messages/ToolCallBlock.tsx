@@ -25,7 +25,7 @@ function stripCwd(path: string, cwd?: string): string {
 function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: string): string {
   switch (toolName) {
     case 'Bash':
-      return truncate(String(input.command || ''), 80);
+      return String(input.command || '');
     case 'Edit':
     case 'Write':
       return stripCwd(String(input.file_path || ''), cwd);
@@ -43,7 +43,7 @@ function getToolSummary(toolName: string, input: Record<string, unknown>, cwd?: 
       return `${input.pattern || ''} ${input.path ? `in ${stripCwd(String(input.path), cwd)}` : ''}`.trim();
     case 'Task':
     case 'Agent':
-      return truncate(String(input.description || input.prompt || ''), 80);
+      return String(input.description || input.prompt || '');
     case 'TodoWrite':
       return 'update tasks';
     case 'AskUserQuestion': {
@@ -348,7 +348,7 @@ export function ToolCallBlock({ msg, collapsed, onToggle, cwd, tasks, childMessa
       <div className={`tool-header${hasBody ? '' : ' tool-header-static'}`} onClick={hasBody ? onToggle : undefined}>
         {hasBody && <span className={`tool-chevron${collapsed ? '' : ' expanded'}`}>&#9654;</span>}
         <span className="tool-name">{toolName}</span>
-        {summary && <span className="tool-summary">{summary}</span>}
+        {summary && collapsed && <span className="tool-summary">{summary}</span>}
         {taskInfo && <TaskBadge status={taskInfo.status as 'running' | 'stalled'} />}
         {hasChildren && collapsed && <span className="task-child-count">{childMessages.length}</span>}
       </div>
