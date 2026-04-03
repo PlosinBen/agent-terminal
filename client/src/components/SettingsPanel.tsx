@@ -57,13 +57,12 @@ interface Props {
   onSettingsChanged: () => void;
 }
 
-type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'providers' | 'models' | 'history';
+type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'providers' | 'history';
 const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: 'keybindings', label: 'Keybindings' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'display', label: 'Display' },
   { id: 'providers', label: 'Providers' },
-  { id: 'models', label: 'Models' },
   { id: 'history', label: 'History' },
 ];
 
@@ -390,17 +389,10 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
                   </div>
                 );
               })}
-            </>
-          )}
-
-          {/* ── Models ── */}
-          {activeTab === 'models' && (
-            <>
               <div className="settings-section">
-                <div className="settings-section-title">Model Aliases</div>
+                <div className="settings-section-title">Model Options</div>
                 <div className="settings-section-desc">
-                  Expand the model picker with additional aliases.
-                  These options only apply to Claude Code backend and are passed directly to the SDK.
+                  Expand the model picker with additional aliases (Claude only).
                 </div>
               </div>
 
