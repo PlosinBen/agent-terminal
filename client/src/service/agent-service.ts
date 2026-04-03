@@ -1,4 +1,4 @@
-import type { UpstreamMessage, DownstreamMessage, FolderListResultMsg, ProjectCreatedMsg, CommandResultMsg, ServerInfoResultMsg } from '@shared/protocol';
+import type { UpstreamMessage, DownstreamMessage, FolderListResultMsg, ProjectCreatedMsg, CommandResultMsg, ServerInfoResultMsg, ProviderVerifyResultMsg, ProviderPathUpdatedMsg, ProviderPathsResultMsg } from '@shared/protocol';
 import type { ProjectInfo } from '../types/project';
 import type { ServerConfig } from '../types/server';
 import type { ServiceEventHandler, ConnectionChangedPayload } from './types';
@@ -157,6 +157,29 @@ export class AgentService {
     return this.request<ServerInfoResultMsg>(host, {
       type: 'server:info', requestId: nextRequestId(),
     }, 'server:info_result');
+  }
+
+  // ── Provider Path Settings ──
+
+  /** Verify a binary path is valid and executable. */
+  verifyProviderPath(host: string, provider: string, binaryPath: string): Promise<ProviderVerifyResultMsg> {
+    return this.request<ProviderVerifyResultMsg>(host, {
+      type: 'provider:verify', provider, binaryPath, requestId: nextRequestId(),
+    }, 'provider:verifyResult');
+  }
+
+  /** Save a provider binary path and re-initialize registry. */
+  setProviderPath(host: string, provider: string, binaryPath: string): Promise<ProviderPathUpdatedMsg> {
+    return this.request<ProviderPathUpdatedMsg>(host, {
+      type: 'provider:setPath', provider, binaryPath, requestId: nextRequestId(),
+    }, 'provider:pathUpdated');
+  }
+
+  /** Get current provider paths from server config. */
+  getProviderPaths(host: string): Promise<ProviderPathsResultMsg> {
+    return this.request<ProviderPathsResultMsg>(host, {
+      type: 'provider:getPaths', requestId: nextRequestId(),
+    }, 'provider:pathsResult');
   }
 
   // ── Folder Listing (server-level, no projectId) ──

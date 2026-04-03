@@ -15,6 +15,7 @@ export interface AppConfig {
   logging: {
     level: 'error' | 'warn' | 'info' | 'debug';
   };
+  providerPaths?: Record<string, string>;
 }
 
 const DEFAULT_CONFIG: AppConfig = {

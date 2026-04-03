@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process';
 import { logger } from '../../core/logger.js';
+import { loadConfig } from '../../core/config.js';
 
 interface CopilotTokenResponse {
   token: string;
@@ -41,14 +42,16 @@ export class CopilotAuth {
   }
 
   private getGitHubToken(): string {
+    const ghPath = loadConfig().providerPaths?.copilot || 'gh';
     try {
-      const token = execFileSync('gh', ['auth', 'token'], { encoding: 'utf8', timeout: 5000 }).trim();
+      const token = execFileSync(ghPath, ['auth', 'token'], { encoding: 'utf8', timeout: 5000 }).trim();
       if (!token) throw new Error('gh auth token returned empty string');
       return token;
     } catch (err) {
       throw new Error(
-        `GitHub Copilot auth failed: could not get token via "gh auth token".\n` +
+        `GitHub Copilot auth failed: could not get token via "${ghPath} auth token".\n` +
         `Make sure you have the GitHub CLI installed and are logged in with "gh auth login".\n` +
+        `You can set the gh binary path in Settings > Providers.\n` +
         `Original error: ${err instanceof Error ? err.message : String(err)}`,
       );
     }

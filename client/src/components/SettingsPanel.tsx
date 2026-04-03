@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useKeyboardScope } from '../hooks/useKeyboardScope';
 import {
   type Action,
@@ -17,6 +17,7 @@ import {
   DEFAULT_SETTINGS,
   DISPLAY_KEYS,
 } from '../settings';
+import { useServerStore } from '../stores/server-store';
 import './SettingsPanel.css';
 
 declare const __APP_VERSION__: string;
@@ -56,14 +57,22 @@ interface Props {
   onSettingsChanged: () => void;
 }
 
-type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'models' | 'history';
+type SettingsTab = 'keybindings' | 'appearance' | 'display' | 'providers' | 'models' | 'history';
 const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: 'keybindings', label: 'Keybindings' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'display', label: 'Display' },
+  { id: 'providers', label: 'Providers' },
   { id: 'models', label: 'Models' },
   { id: 'history', label: 'History' },
 ];
+
+// Provider definitions for path settings (CLI-based providers only)
+const PROVIDER_PATH_DEFS = [
+  { name: 'claude', label: 'Claude', hint: 'Leave empty for auto-detect' },
+  { name: 'gemini', label: 'Gemini', hint: 'Leave empty for auto-detect' },
+  { name: 'copilot', label: 'GitHub Copilot', hint: 'Path to gh CLI (e.g. /opt/homebrew/bin/gh)' },
+] as const;
 
 export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('keybindings');
@@ -84,6 +93,53 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
   );
   const stDirty = JSON.stringify(stDraft) !== JSON.stringify(stSavedRef.current);
   const dirty = kbDirty || stDirty;
+
+  // Provider paths state
+  const service = useServerStore.getState()._service;
+  const localHost = useServerStore(s => s.localHost);
+  const availableProviders = useServerStore(s => s.providers);
+  const [providerPaths, setProviderPaths] = useState<Record<string, string>>({});
+  const [providerPathDrafts, setProviderPathDrafts] = useState<Record<string, string>>({});
+  const [providerVerify, setProviderVerify] = useState<Record<string, { loading?: boolean; valid?: boolean; version?: string; error?: string }>>({});
+
+  const availableSet = useMemo(() => new Set(availableProviders.map(p => p.name)), [availableProviders]);
+
+  // Fetch provider paths when Providers tab is activated
+  useEffect(() => {
+    if (activeTab !== 'providers' || !service || !localHost) return;
+    service.getProviderPaths(localHost).then(result => {
+      setProviderPaths(result.paths);
+      setProviderPathDrafts(result.paths);
+    });
+  }, [activeTab, service, localHost]);
+
+  const handleVerifyPath = useCallback((provider: string) => {
+    if (!service || !localHost) return;
+    const path = providerPathDrafts[provider]?.trim();
+    if (!path) return;
+    setProviderVerify(prev => ({ ...prev, [provider]: { loading: true } }));
+    service.verifyProviderPath(localHost, provider, path).then(result => {
+      setProviderVerify(prev => ({
+        ...prev,
+        [provider]: { valid: result.valid, version: result.version, error: result.error },
+      }));
+    });
+  }, [service, localHost, providerPathDrafts]);
+
+  const handleSavePath = useCallback((provider: string) => {
+    if (!service || !localHost) return;
+    const path = providerPathDrafts[provider]?.trim() || '';
+    service.setProviderPath(localHost, provider, path).then(() => {
+      setProviderPaths(prev => {
+        const next = { ...prev };
+        if (path) next[provider] = path;
+        else delete next[provider];
+        return next;
+      });
+      // Clear verify state after save
+      setProviderVerify(prev => ({ ...prev, [provider]: {} }));
+    });
+  }, [service, localHost, providerPathDrafts]);
 
   // Scope: block app shortcuts while settings is open
   useKeyboardScope('settings', {
@@ -180,11 +236,12 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
           <span className="settings-version">v{__APP_VERSION__}</span>
           <button className="settings-close-btn" onClick={onClose}>&times;</button>
         </div>
-        <div className="settings-tabs">
+        <div className="settings-layout">
+        <div className="settings-sidebar">
           {SETTINGS_TABS.map(tab => (
             <button
               key={tab.id}
-              className={`settings-tab${activeTab === tab.id ? ' active' : ''}`}
+              className={`settings-nav-item${activeTab === tab.id ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >{tab.label}</button>
           ))}
@@ -269,6 +326,70 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
                   </select>
                 </div>
               ))}
+            </>
+          )}
+
+          {/* ── Providers ── */}
+          {activeTab === 'providers' && (
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">Provider Binary Paths</div>
+                <div className="settings-section-desc">
+                  Configure binary paths for CLI-based providers. Leave empty for auto-detect.
+                </div>
+              </div>
+              {PROVIDER_PATH_DEFS.map(({ name, label, hint }) => {
+                const draft = providerPathDrafts[name] ?? '';
+                const saved = providerPaths[name] ?? '';
+                const verify = providerVerify[name];
+                const isAvailable = availableSet.has(name);
+                const pathChanged = draft !== saved;
+
+                return (
+                  <div className="settings-section" key={name}>
+                    <div className="provider-row-header">
+                      <span className="provider-name">{label}</span>
+                      <span className={`provider-status ${isAvailable ? 'available' : 'unavailable'}`}>
+                        {isAvailable ? '● Available' : '○ Unavailable'}
+                      </span>
+                    </div>
+                    <div className="provider-path-row">
+                      <input
+                        className="settings-text-input provider-path-input"
+                        value={draft}
+                        placeholder={hint}
+                        spellCheck={false}
+                        onChange={e => setProviderPathDrafts(prev => ({ ...prev, [name]: e.target.value }))}
+                      />
+                      <button
+                        className="provider-verify-btn"
+                        disabled={!draft.trim() || verify?.loading}
+                        onClick={() => handleVerifyPath(name)}
+                      >
+                        {verify?.loading ? '...' : 'Verify'}
+                      </button>
+                      <button
+                        className="provider-save-btn"
+                        disabled={!pathChanged}
+                        onClick={() => handleSavePath(name)}
+                      >
+                        Save
+                      </button>
+                    </div>
+                    {verify && !verify.loading && (
+                      <div className={`provider-verify-result ${verify.valid ? 'valid' : 'invalid'}`}>
+                        {verify.valid
+                          ? `✓ Valid${verify.version ? ` — ${verify.version}` : ''}`
+                          : `✗ ${verify.error || 'Invalid path'}`
+                        }
+                      </div>
+                    )}
+                    {!draft && saved && (
+                      <div className="provider-verify-result hint">Cleared — will revert to auto-detect on save</div>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
 
@@ -371,6 +492,7 @@ export function SettingsPanel({ onClose, onKeybindingsChanged, onSettingsChanged
               Save
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>

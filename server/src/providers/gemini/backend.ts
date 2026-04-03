@@ -2,6 +2,7 @@ import * as pty from 'node-pty';
 import type { AgentBackend, AgentMessage, PermissionHandler, RawUsageData, CommandInfo, ProviderCommandResult } from '../types.js';
 import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { logger } from '../../core/logger.js';
+import { loadConfig } from '../../core/config.js';
 
 export class GeminiBackend implements AgentBackend {
   private ptyProcess: pty.IPty | null = null;
@@ -55,10 +56,11 @@ export class GeminiBackend implements AgentBackend {
 
     args.push('-p', prompt || ' ');
 
-    logger.info(`[gemini] spawning: gemini ${args.join(' ')}`);
+    const geminiCmd = loadConfig().providerPaths?.gemini || 'gemini';
+    logger.info(`[gemini] spawning: ${geminiCmd} ${args.join(' ')}`);
 
     try {
-      const ptyProc = pty.spawn('gemini', args, {
+      const ptyProc = pty.spawn(geminiCmd, args, {
         name: 'xterm-256color',
         cols: 120,
         rows: 40,

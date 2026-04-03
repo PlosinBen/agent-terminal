@@ -4,13 +4,22 @@ import type { AgentBackend, AgentMessage, PermissionHandler, RawUsageData, Comma
 import { getProviderCache, setProviderCache } from '../../core/provider-cache.js';
 import { UsageTracker } from './usage-tracker.js';
 import { logger } from '../../core/logger.js';
+import { loadConfig } from '../../core/config.js';
 import { execFileSync } from 'child_process';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
 
 function findClaudeBinary(): string | undefined {
-  // Check common locations for the native binary
+  // 1. Check user-configured path from config
+  try {
+    const configPath = loadConfig().providerPaths?.claude;
+    if (configPath) {
+      try { if (fs.statSync(configPath).isFile()) return configPath; } catch {}
+    }
+  } catch {}
+
+  // 2. Check common locations for the native binary
   const candidates = [
     path.join(os.homedir(), '.local', 'bin', 'claude'),
     '/usr/local/bin/claude',
@@ -19,7 +28,7 @@ function findClaudeBinary(): string | undefined {
   for (const p of candidates) {
     try { if (fs.statSync(p).isFile()) return p; } catch {}
   }
-  // Fallback: which
+  // 3. Fallback: which
   try {
     return execFileSync('which', ['claude'], { encoding: 'utf8', timeout: 3000 }).trim() || undefined;
   } catch { return undefined; }

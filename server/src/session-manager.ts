@@ -12,6 +12,7 @@ import { handlePtySpawn, handlePtyInput, handlePtyResize, cleanupPty } from './h
 import { handleFolderList, handleServerInfo } from './handlers/folder-handler.js';
 import { handleProjectCreate, handleProjectList } from './handlers/project-handler.js';
 import { handleAgentQuery, handleAgentStop, handleAgentCommand, handlePermissionResponse, handleSetPermissionMode } from './handlers/agent-handler.js';
+import { handleProviderVerify, handleProviderSetPath, handleProviderGetPaths } from './handlers/provider-handler.js';
 
 export interface ProjectSession {
   project: ProjectConfig;
@@ -90,6 +91,15 @@ export class SessionManager {
         if (session) handlePtyResize(session, msg);
         break;
       }
+      case 'provider:verify':
+        handleProviderVerify(msg, send);
+        break;
+      case 'provider:setPath':
+        handleProviderSetPath(msg, send, wsServer);
+        break;
+      case 'provider:getPaths':
+        handleProviderGetPaths(msg, send);
+        break;
     }
   }
 

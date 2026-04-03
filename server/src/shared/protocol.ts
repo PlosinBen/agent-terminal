@@ -87,6 +87,25 @@ export interface SetPermissionModeMsg {
   mode: string;
 }
 
+export interface ProviderVerifyMsg {
+  type: 'provider:verify';
+  requestId: string;
+  provider: string;
+  binaryPath: string;
+}
+
+export interface ProviderSetPathMsg {
+  type: 'provider:setPath';
+  requestId: string;
+  provider: string;
+  binaryPath: string;  // empty string = clear (revert to auto-detect)
+}
+
+export interface ProviderGetPathsMsg {
+  type: 'provider:getPaths';
+  requestId: string;
+}
+
 export type UpstreamMessage =
   | AgentQueryMsg
   | AgentStopMsg
@@ -99,7 +118,10 @@ export type UpstreamMessage =
   | ProjectListMsg
   | FolderListMsg
   | ServerInfoMsg
-  | SetPermissionModeMsg;
+  | SetPermissionModeMsg
+  | ProviderVerifyMsg
+  | ProviderSetPathMsg
+  | ProviderGetPathsMsg;
 
 // ── Main → Renderer ──
 
@@ -253,6 +275,29 @@ export interface ProviderListMsg {
   providers: { name: string; displayName: string }[];
 }
 
+export interface ProviderVerifyResultMsg {
+  type: 'provider:verifyResult';
+  requestId: string;
+  provider: string;
+  valid: boolean;
+  version?: string;
+  error?: string;
+}
+
+export interface ProviderPathUpdatedMsg {
+  type: 'provider:pathUpdated';
+  requestId: string;
+  provider: string;
+  binaryPath: string;
+  providers: { name: string; displayName: string }[];
+}
+
+export interface ProviderPathsResultMsg {
+  type: 'provider:pathsResult';
+  requestId: string;
+  paths: Record<string, string>;
+}
+
 export type DownstreamMessage =
   | AgentTextMsg
   | AgentThinkingMsg
@@ -273,4 +318,7 @@ export type DownstreamMessage =
   | ServerInfoResultMsg
   | CommandResultMsg
   | TaskUpdateMsg
-  | ProviderListMsg;
+  | ProviderListMsg
+  | ProviderVerifyResultMsg
+  | ProviderPathUpdatedMsg
+  | ProviderPathsResultMsg;

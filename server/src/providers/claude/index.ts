@@ -13,7 +13,20 @@ export const provider: ProviderDefinition = {
   createBackend: (opts) => new ClaudeBackend(opts),
 
   checkAvailable: async () => {
-    // Check if claude CLI binary exists
+    // 1. Check user-configured path from config
+    const { loadConfig } = await import('../../core/config.js');
+    const configPath = loadConfig().providerPaths?.claude;
+    if (configPath) {
+      try {
+        if (fs.statSync(configPath).isFile()) {
+          logger.info(`[provider:claude] Found binary from config: ${configPath}`);
+          return true;
+        }
+      } catch {}
+      logger.warn(`[provider:claude] Config path "${configPath}" not found, trying auto-detect`);
+    }
+
+    // 2. Check well-known candidate paths
     const candidates = [
       path.join(os.homedir(), '.local', 'bin', 'claude'),
       '/usr/local/bin/claude',
@@ -27,6 +40,8 @@ export const provider: ProviderDefinition = {
         }
       } catch {}
     }
+
+    // 3. Fallback: which
     try {
       const result = execFileSync('which', ['claude'], { encoding: 'utf8', timeout: 3000 }).trim();
       if (result) {
