@@ -343,7 +343,7 @@ export function ToolCallBlock({ msg, collapsed, onToggle, cwd, tasks, childMessa
   const result = msg.toolResult;
   const summary = getToolSummary(toolName, input, cwd);
   const hasChildren = (toolName === 'Task' || toolName === 'Agent') && childMessages && childMessages.length > 0;
-  const hasBody = toolName === 'Read' ? !!result : toolName !== 'Bash' || hasChildren;
+  const hasBody = toolName === 'Read' ? !!result : true;
 
   // Find active task status for Task tool calls
   const taskInfo = toolName === 'Task' && msg.toolUseId && tasks
