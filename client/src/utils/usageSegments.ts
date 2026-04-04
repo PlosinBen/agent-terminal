@@ -11,10 +11,10 @@ export function computeUsageSegments(usage: RawUsageData | undefined | null): St
   const segments: StatusSegment[] = [];
 
   // Context %: only show if contextWindow is provided and > 0
+  // contextUsedTokens already includes all input tokens (input + cache read + cache creation)
   if (usage.contextWindow != null && usage.contextWindow > 0 &&
-      usage.contextUsedTokens != null && usage.outputTokens != null) {
-    const ctxUsed = usage.contextUsedTokens + usage.outputTokens;
-    const ctxRatio = ctxUsed / usage.contextWindow;
+      usage.contextUsedTokens != null) {
+    const ctxRatio = usage.contextUsedTokens / usage.contextWindow;
     const ctxPct = `${Math.round(ctxRatio * 100)}%`;
     const ctxColor = ctxRatio >= 0.8 ? '#e06c75' : ctxRatio >= 0.5 ? '#e5c07b' : undefined;
     segments.push({ label: 'ctx', value: ctxPct, color: ctxColor });
